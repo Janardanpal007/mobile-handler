@@ -28,7 +28,7 @@
 | 02 | **Ad Blocker** | Blocks ads in every app and browser with Android's Private DNS (AdGuard or Mullvad). No VPN slot used. Also finds trackers hidden inside your apps. |
 | 03 | **Photo Enhancer** | Makes photos HD (4× resolution), restores old pictures and colorizes black & white ones, on the phone, with open-source AI. |
 | 04 | **Scan Document & Scan QR** | Turns paper into clean PDFs and reads any QR code (links, Wi-Fi, text). **Photos → PDF** combines images into one PDF. |
-| 05 | **Voice assistant** | Tap the orb and say what you need ("scan a document", "clean my phone") and it opens the right tool. |
+| 05 | **Assistant** | Type what you need ("scan a document", "clean my phone") and it opens the right tool. |
 
 Also included: **Calculator** with currency converter, **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
 
