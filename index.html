@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Handler</title>
+<meta name="description" content="Mobile Handler: one private Android app to clean your phone, block ads, scan documents, enhance photos and more. Works on your phone, no account needed.">
+<meta property="og:title" content="Mobile Handler">
+<meta property="og:description" content="One private Android app to clean, protect and handle your phone.">
+<meta property="og:image" content="shots/home.webp">
+<link rel="icon" href="orb.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #D9D7D2; --card: #E6E4DF; --line: #C9C6C0;
+    --ink: #1C221F; --muted: #5C625E; --dark: #232C27;
+    --coral: #D65F4E; --mint: #A8CDA0; --sky: #A5C8DB; --sun: #D8C966;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; line-height: 1.55; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 20px 0; }
+  header img { width: 44px; height: 44px; border-radius: 50%; background: #141B18; }
+  header b { font-size: 20px; font-weight: 600; }
+  header nav { margin-left: auto; display: flex; gap: 20px; font-size: 15px; color: var(--muted); }
+  header nav a { text-decoration: none; }
+
+  .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; padding: 32px 0 56px; }
+  .hero h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700; }
+  .hero p { font-size: 19px; color: var(--muted); margin: 20px 0 28px; max-width: 34em; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; background: var(--coral); color: #fff; text-decoration: none;
+         font-weight: 600; font-size: 17px; padding: 16px 28px; border-radius: 999px; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn svg { width: 20px; height: 20px; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 12px; }
+  .phones { display: flex; justify-content: center; }
+  .phone { width: min(300px, 80vw); border-radius: 36px; border: 8px solid var(--dark); overflow: hidden; background: var(--dark);
+           box-shadow: 0 30px 60px -20px rgba(0,0,0,.35); }
+  .phone img { display: block; width: 100%; height: auto; }
+
+  section { padding: 56px 0; }
+  h2 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.01em; margin-bottom: 8px; }
+  .lead { color: var(--muted); font-size: 17px; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 22px; }
+  .dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; margin-bottom: 14px; }
+  .card h3 { font-size: 18px; margin-bottom: 4px; }
+  .card p { color: var(--muted); font-size: 15px; }
+
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .gallery figure { text-align: center; }
+  .gallery .phone { width: 100%; max-width: 280px; margin: 0 auto; }
+  .gallery figcaption { margin-top: 12px; color: var(--muted); font-size: 15px; }
+
+  .private { background: var(--dark); color: #EDEBE6; border-radius: 32px; padding: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .private h2 { color: #fff; }
+  .private ul { list-style: none; padding: 0; display: grid; gap: 14px; }
+  .private li { padding-left: 30px; position: relative; color: #C9CCC8; }
+  .private li::before { content: "✓"; position: absolute; left: 0; color: var(--mint); font-weight: 700; }
+
+  .steps { counter-reset: s; display: grid; gap: 12px; padding: 0; list-style: none; }
+  .steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px 18px 18px 64px; position: relative; }
+  .steps li::before { content: counter(s); position: absolute; left: 18px; top: 16px; width: 30px; height: 30px; border-radius: 50%;
+                      background: var(--dark); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 15px; }
+
+  footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+
+  @media (max-width: 800px) {
+    .hero { grid-template-columns: 1fr; padding-top: 8px; }
+    .gallery { grid-template-columns: 1fr; }
+    .private { grid-template-columns: 1fr; padding: 28px 22px; }
+    header nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="orb.png" alt="">
+    <b>Mobile Handler</b>
+    <nav><a href="#features">Features</a><a href="#privacy">Privacy</a><a href="#install">Install</a></nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>One app to handle your phone.</h1>
+      <p>Clean out bloatware, block ads, scan documents, sharpen old photos and more — all in one private Android app. Just tap the orb and say what you need.</p>
+      <a class="btn" href="https://github.com/Janardanpal007/mobile-handler/releases/latest/download/MobileHandler.apk">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+        Download APK
+      </a>
+      <div class="note">Free · Android 8.0 or newer · about 62 MB · version 1.0</div>
+    </div>
+    <div class="phones"><div class="phone"><img src="shots/home.webp" alt="Mobile Handler home screen" width="540" height="1200"></div></div>
+  </div>
+
+  <section id="features">
+    <h2>12 tools, one home screen</h2>
+    <p class="lead">Everything works on your phone. Most of it works offline.</p>
+    <div class="grid">
+      <div class="card"><div class="dot" style="background:var(--coral)">🎙️</div><h3>Voice assistant</h3><p>Tap the orb and say “scan a document” or “clean my phone”. It opens the right tool for you.</p></div>
+      <div class="card"><div class="dot" style="background:var(--mint)">🧹</div><h3>Phone Cleaner</h3><p>Turn off bloatware apps safely, and bring them back any time with Restore Apps.</p></div>
+      <div class="card"><div class="dot" style="background:var(--sky)">🛡️</div><h3>Ad Blocker</h3><p>Blocks ads across apps and browsers using Private DNS (AdGuard or Mullvad), and finds trackers hidden inside your apps.</p></div>
+      <div class="card"><div class="dot" style="background:var(--coral)">✨</div><h3>Photo Enhancer</h3><p>Make photos HD, restore old pictures and colorize black-and-white ones — on the phone, with open-source AI.</p></div>
+      <div class="card"><div class="dot" style="background:var(--sun)">📄</div><h3>Scan Document</h3><p>Scan pages with the camera and save them as a clean PDF.</p></div>
+      <div class="card"><div class="dot" style="background:var(--mint)">🖼️</div><h3>Photos → PDF</h3><p>Combine images into one PDF that's ready to share.</p></div>
+      <div class="card"><div class="dot" style="background:var(--sky)">🔳</div><h3>Scan QR</h3><p>Open links, join Wi-Fi or copy text from any QR code.</p></div>
+      <div class="card"><div class="dot" style="background:var(--sun)">🧮</div><h3>Calculator</h3><p>A simple calculator plus a currency converter.</p></div>
+      <div class="card"><div class="dot" style="background:var(--coral)">⛅</div><h3>Weather</h3><p>Today's weather and the next three days.</p></div>
+      <div class="card"><div class="dot" style="background:var(--mint)">📁</div><h3>My Files</h3><p>All your scans, PDFs and enhanced photos in one place. Open, share or delete them.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>A closer look</h2>
+    <p class="lead">Calm, simple screens with big buttons, in light and dark mode.</p>
+    <div class="gallery">
+      <figure><div class="phone"><img src="shots/home.webp" alt="Home screen" loading="lazy" width="540" height="1200"></div><figcaption>Home and voice assistant</figcaption></figure>
+      <figure><div class="phone"><img src="shots/photo-enhancer.webp" alt="Photo Enhancer" loading="lazy" width="540" height="1200"></div><figcaption>Photo Enhancer</figcaption></figure>
+      <figure><div class="phone"><img src="shots/calculator.webp" alt="Calculator" loading="lazy" width="540" height="1200"></div><figcaption>Calculator and currency</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="private">
+      <div>
+        <h2>Private by design</h2>
+        <p style="color:#C9CCC8;margin-top:8px">Your phone stays yours. Mobile Handler doesn't need an account and doesn't track you.</p>
+      </div>
+      <ul>
+        <li>No sign-up, no ads, no analytics.</li>
+        <li>Photos, scans and files are processed on the phone.</li>
+        <li>Private mode keeps the app fully offline.</li>
+        <li>Removed apps can always be restored.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>How to install</h2>
+    <p class="lead">Mobile Handler isn't on the Play Store yet, so you install it directly.</p>
+    <ol class="steps">
+      <li>Tap <b>Download APK</b> on this page on your Android phone.</li>
+      <li>Open the downloaded file. If Android asks, allow your browser to install apps.</li>
+      <li>Tap <b>Install</b>, then open Mobile Handler. Play Protect may warn you because the app is new and not from the Play Store — tap <b>Install anyway</b>.</li>
+      <li>For Phone Cleaner, install the free <a href="https://shizuku.rikka.app/">Shizuku</a> app. The app shows you how.</li>
+    </ol>
+    <p style="margin-top:28px"><a class="btn" href="https://github.com/Janardanpal007/mobile-handler/releases/latest/download/MobileHandler.apk">Download APK</a></p>
+  </section>
+
+  <footer>
+    <span>Mobile Handler · Built by Janardan / TSE</span>
+    <span>Photo AI: Real-ESRGAN and DDColor (open source)</span>
+  </footer>
+</div>
+</body>
+</html>
