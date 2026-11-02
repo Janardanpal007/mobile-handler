@@ -60,6 +60,13 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
+    // PDF Reader & Editor: merge, split, compress and save annotations (Apache-2.0). Viewing uses Android's PdfRenderer.
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+    testImplementation("junit:junit:4.13.2")
+    // Real XML parser for the .docx / .xlsx tests (Android supplies its own on the phone).
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
+
     // Shizuku: runs pm/settings commands with ADB (shell) privileges, no root needed
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
