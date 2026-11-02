@@ -10,7 +10,10 @@ import com.cleanai.debloat.ui.BUILT_BY
 import com.cleanai.debloat.ui.Butter
 import com.cleanai.debloat.ui.CalculatorScreen
 import com.cleanai.debloat.ui.FilesScreen
+import com.cleanai.debloat.ui.PdfScreen
 import com.cleanai.debloat.ui.PhotoScreen
+import com.cleanai.debloat.ui.SheetScreen
+import com.cleanai.debloat.ui.WordScreen
 import com.cleanai.debloat.ui.Coral
 import com.cleanai.debloat.ui.Mint
 import com.cleanai.debloat.ui.Sky
@@ -45,10 +48,13 @@ sealed interface Opens {
 object Features {
     val all: List<Feature> = listOf(
         Feature("adblock", "Ad Blocker", "Block ads & trackers", R.drawable.ic_tool_shield, Sky, Opens.Assistant(Act.Trackers)),
-        Feature("calculator", "Calculator", "Maths & currency", R.drawable.ic_tool_calc, Butter, Opens.Screen { onBack -> CalculatorScreen(onBack) }),
+        Feature("calculator", "Calculator", "Scientific, finance, currency", R.drawable.ic_tool_calc, Butter, Opens.Screen { onBack -> CalculatorScreen(onBack) }),
         Feature("qr", "Scan QR", "Links, Wi-Fi, text", R.drawable.ic_tool_qr, Coral, Opens.Assistant(Act.ScanQr)),
         Feature("docscan", "Scan Document", "Save pages as PDF", R.drawable.ic_tool_doc, Mint, Opens.Assistant(Act.ScanDoc)),
         Feature("pdf", "Photos → PDF", "Combine images", R.drawable.ic_tool_pdf, Sky, Opens.Assistant(Act.MakePdf)),
+        Feature("pdfreader", "PDF Reader", "Read, annotate, merge", R.drawable.ic_tool_reader, Coral, Opens.Screen { onBack -> PdfScreen(onBack) }),
+        Feature("word", "Word", "Create & edit .docx", R.drawable.ic_tool_word, Sky, Opens.Screen { onBack -> WordScreen(onBack) }),
+        Feature("excel", "Excel", "Sheets, CSV & formulas", R.drawable.ic_tool_sheet, Mint, Opens.Screen { onBack -> SheetScreen(onBack) }),
         Feature("photo", "Photo Enhancer", "HD, restore, colorize", R.drawable.ic_tool_photo, Coral, Opens.Screen { onBack -> PhotoScreen(onBack) }),
         Feature("assistant", "Assistant", "Help with app tools", R.drawable.ic_tool_assistant, Coral, Opens.Assistant(null)),
         Feature("cleaner", "Phone Cleaner", "Remove bloatware", R.drawable.ic_tool_clean, Mint, Opens.Assistant(Act.Clean)),

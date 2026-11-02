@@ -33,6 +33,8 @@ import com.cleanai.debloat.data.WebHelp
 import com.cleanai.debloat.features.Feature
 import com.cleanai.debloat.features.Features
 import com.cleanai.debloat.features.Opens
+import com.cleanai.debloat.overlay.FloatingCalcService
+import com.cleanai.debloat.ui.CalcMemory
 import com.cleanai.debloat.data.Decision
 import com.cleanai.debloat.data.FoundApp
 import com.cleanai.debloat.data.Guard
@@ -243,6 +245,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             steps = listOf(
                 "\"Clean my phone\" or \"block ads\" — safe, and every change can be undone.",
                 "\"Scan a QR\", \"scan a document\", \"make a PDF\", \"open calculator\".",
+                "\"Merge PDFs\", \"open Word\", \"new spreadsheet\", \"loan EMI\", \"floating calculator\".",
                 "\"What is 25 x 4\", \"what's the time\", \"clear chat\", \"open settings\".",
                 if (privateMode) "🔒 Private mode is on: everything stays on this phone."
                 else "🌐 Online mode: weather, currency and web tips are on.",
@@ -823,6 +826,27 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun understand(text: String) {
         val t = text.lowercase()
+        // Office and calculator tools, before the generic "open …" match and the Photos → PDF rule below.
+        when {
+            Regex("""\bfloat\w*\b.*\bcalc\w*|\bcalc\w*\b.*\b(float\w*|overlay|bubble)""").containsMatchIn(t) -> {
+                say("Opening the floating calculator. It stays on top of other apps — drag it by its top bar, ✕ closes it.", think = 100)
+                FloatingCalcService.start(ctx)
+                return
+            }
+            Regex("""\bscientific\b|\b(sin|cos|tan|log)\b.*\bcalc""").containsMatchIn(t) -> {
+                CalcMemory.requestedTab = 1
+                return openFeature(Features.byId("calculator")!!)
+            }
+            Regex("""\b(emi|sip|gst|loan|compound interest|finance calc\w*|financial calc\w*)\b""").containsMatchIn(t) -> {
+                CalcMemory.requestedTab = 2
+                return openFeature(Features.byId("calculator")!!)
+            }
+            Regex("""\b(excel|spreadsheets?|xlsx|csv)\b""").containsMatchIn(t) -> return openFeature(Features.byId("excel")!!)
+            Regex("""\b(docx|ms word|word (doc|document|file)s?|write an? (document|letter))\b""").containsMatchIn(t) -> return openFeature(Features.byId("word")!!)
+            Regex("""\bpdfs?\b""").containsMatchIn(t) && !Regex("""\b(photos?|images?|pictures?|pics?|jpe?gs?|scan\w*)\b""").containsMatchIn(t) &&
+                Regex("""\b(read|view|open|edit|merge|combine|join|split|extract|compress|shrink|reduce|annotate|highlight|draw|sign|remove|delete)\b|reader|editor|viewer""").containsMatchIn(t) ->
+                return openFeature(Features.byId("pdfreader")!!)
+        }
         // "Open calculator", "start the QR scanner": jump straight to that feature.
         Regex("^(?:please\\s+)?(?:open|launch|start|show|go to)\\s+(?:the\\s+|my\\s+)?(.+)$").find(t)?.let { m ->
             val wanted = m.groupValues[1].trim()
