@@ -1,0 +1,12 @@
+.gradle/
+.kotlin/
+build/
+app/build/
+local.properties
+*.apk
+*.jks
+*.keystore
+.idea/
+*.iml
+# Old development screenshots taken on the developer phone
+shots/

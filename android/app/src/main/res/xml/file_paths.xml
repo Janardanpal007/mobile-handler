@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PDFs saved on Android 9 and older live in app storage and are shared through FileProvider. -->
+<paths>
+    <files-path name="myfiles" path="MyFiles/" />
+    <external-files-path name="documents" path="Documents/" />
+</paths>

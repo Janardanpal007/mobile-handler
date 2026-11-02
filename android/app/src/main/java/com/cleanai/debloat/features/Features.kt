@@ -1,0 +1,62 @@
+package com.cleanai.debloat.features
+
+import androidx.annotation.DrawableRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import com.cleanai.debloat.R
+import com.cleanai.debloat.agent.Act
+import com.cleanai.debloat.ui.AboutScreen
+import com.cleanai.debloat.ui.BUILT_BY
+import com.cleanai.debloat.ui.Butter
+import com.cleanai.debloat.ui.CalculatorScreen
+import com.cleanai.debloat.ui.FilesScreen
+import com.cleanai.debloat.ui.PhotoScreen
+import com.cleanai.debloat.ui.Coral
+import com.cleanai.debloat.ui.Mint
+import com.cleanai.debloat.ui.Sky
+
+/**
+ * One tile on the home screen.
+ *
+ * To add a feature:
+ *  1. Add an icon to res/drawable (a 24dp vector).
+ *  2. Add a [Feature] to [Features.all] below.
+ *     - [Opens.Assistant] runs an assistant action in the chat (good for guided, step-by-step tools).
+ *     - [Opens.Screen] shows its own full screen; write it as a @Composable taking an onBack callback.
+ * The home grid, navigation and back button pick it up automatically.
+ */
+data class Feature(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    @DrawableRes val icon: Int,
+    val tint: Color,
+    val opens: Opens,
+)
+
+sealed interface Opens {
+    /** Opens the assistant and, if [act] is set, runs it right away. */
+    data class Assistant(val act: Act?) : Opens
+
+    /** A feature with its own screen. */
+    class Screen(val content: @Composable (onBack: () -> Unit) -> Unit) : Opens
+}
+
+object Features {
+    val all: List<Feature> = listOf(
+        Feature("adblock", "Ad Blocker", "Block ads & trackers", R.drawable.ic_tool_shield, Sky, Opens.Assistant(Act.Trackers)),
+        Feature("calculator", "Calculator", "Maths & currency", R.drawable.ic_tool_calc, Butter, Opens.Screen { onBack -> CalculatorScreen(onBack) }),
+        Feature("qr", "Scan QR", "Links, Wi-Fi, text", R.drawable.ic_tool_qr, Coral, Opens.Assistant(Act.ScanQr)),
+        Feature("docscan", "Scan Document", "Save pages as PDF", R.drawable.ic_tool_doc, Mint, Opens.Assistant(Act.ScanDoc)),
+        Feature("pdf", "Photos → PDF", "Combine images", R.drawable.ic_tool_pdf, Sky, Opens.Assistant(Act.MakePdf)),
+        Feature("photo", "Photo Enhancer", "HD, restore, colorize", R.drawable.ic_tool_photo, Coral, Opens.Screen { onBack -> PhotoScreen(onBack) }),
+        Feature("assistant", "Assistant", "Help with app tools", R.drawable.ic_tool_assistant, Coral, Opens.Assistant(null)),
+        Feature("cleaner", "Phone Cleaner", "Remove bloatware", R.drawable.ic_tool_clean, Mint, Opens.Assistant(Act.Clean)),
+        Feature("files", "My Files", "Scans & PDFs", R.drawable.ic_folder, Mint, Opens.Screen { onBack -> FilesScreen(onBack) }),
+        Feature("weather", "Weather", "Today & 3 days", R.drawable.ic_tool_weather, Butter, Opens.Assistant(Act.Weather)),
+        Feature("restore", "Restore Apps", "Undo removals", R.drawable.ic_tool_restore, Coral, Opens.Assistant(Act.Restore)),
+        Feature("about", "About & Privacy", BUILT_BY, R.drawable.ic_tool_info, Mint, Opens.Screen { onBack -> AboutScreen(onBack) }),
+    )
+
+    fun byId(id: String) = all.firstOrNull { it.id == id }
+}

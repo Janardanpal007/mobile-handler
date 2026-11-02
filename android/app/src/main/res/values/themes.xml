@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mobile Handler</string>
+    <color name="bg">#EEEDE9</color>
+    <color name="icon_bg">#141B18</color>
+
+    <style name="Theme.CleanAI" parent="android:Theme.Material.NoActionBar">
+        <!-- Opens on the same dark colour as the icon, so the intro animation starts without a flash -->
+        <item name="android:windowBackground">@color/icon_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
