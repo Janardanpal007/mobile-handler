@@ -1,27 +1,40 @@
 package com.cleanai.debloat.ui
 
+import android.app.Activity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -31,125 +44,411 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cleanai.debloat.data.Answers
+import androidx.core.view.WindowCompat
 import com.cleanai.debloat.data.Currency
 import com.cleanai.debloat.data.Privacy
+import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import kotlinx.coroutines.launch
 
+// iPhone calculator colours.
+private val KeyDigit = Color(0xFF333333)
+private val KeyDigitDown = Color(0xFF737373)
+private val KeyFn = Color(0xFFA5A5A5)
+private val KeyFnDown = Color(0xFFD9D9D9)
+private val KeyOp = Color(0xFFFF9F0A)
+private val KeyOpDown = Color(0xFFFCC78D)
+private val SegmentBg = Color(0xFF1C1C1E)
+private val SegmentOn = Color(0xFF636366)
+
+private const val MAX_DIGITS = 9
+
 private val CalcKeys = listOf(
-    listOf("C", "( )", "%", "÷"),
+    listOf("AC", "±", "%", "÷"),
     listOf("7", "8", "9", "×"),
     listOf("4", "5", "6", "−"),
     listOf("1", "2", "3", "+"),
-    listOf("⌫", "0", ".", "="),
+    listOf("0", ".", "="),
 )
 
 private val MoneyKeys = listOf(
     listOf("7", "8", "9", "⌫"),
-    listOf("4", "5", "6", "C"),
+    listOf("4", "5", "6", "AC"),
     listOf("1", "2", "3", "⇅"),
     listOf("00", "0", ".", "↻"),
 )
 
-/** Calculator with a second tab for live currency conversion. */
+/** iPhone-style calculator with a second tab for live currency conversion. */
 @Composable
 fun CalculatorScreen(onBack: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(0) }
+    LightSystemBars()
     Column(
         Modifier
             .fillMaxSize()
-            .background(Bg)
+            .background(Color.Black)
             .systemBarsPadding(),
     ) {
-        ScreenTopBar("Calculator", onBack)
-        Tabs(listOf("Calculator", "Currency"), tab) { tab = it }
-        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.bouncy(onClick = onBack).size(44.dp).clip(CircleShape).background(KeyDigit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Segments(listOf("Calculator", "Currency"), tab, Modifier.weight(1f)) { tab = it }
+            Spacer(Modifier.width(56.dp))
+        }
         if (tab == 0) MathPad() else CurrencyPad()
     }
 }
 
+/** White status and navigation bar icons while the black calculator is showing. */
 @Composable
-private fun Tabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+private fun LightSystemBars() {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+    DisposableEffect(Unit) {
+        val window = (view.context as Activity).window
+        val bars = WindowCompat.getInsetsController(window, view)
+        bars.isAppearanceLightStatusBars = false
+        bars.isAppearanceLightNavigationBars = false
+        onDispose {
+            bars.isAppearanceLightStatusBars = !AppTheme.dark
+            bars.isAppearanceLightNavigationBars = !AppTheme.dark
+        }
+    }
+}
+
+/** iOS segmented control. */
+@Composable
+private fun Segments(labels: List<String>, selected: Int, modifier: Modifier, onSelect: (Int) -> Unit) {
     Row(
-        Modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(50))
-            .background(Card)
-            .padding(4.dp),
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(SegmentBg)
+            .padding(3.dp),
     ) {
         labels.forEachIndexed { i, label ->
             Box(
-                Modifier.bouncy { onSelect(i) }
+                Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (i == selected) Charcoal else Color.Transparent)
-                    .padding(vertical = 12.dp),
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (i == selected) SegmentOn else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, color = if (i == selected) Color.White else TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(label, color = Color.White, fontSize = 14.sp, fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal)
             }
         }
     }
 }
 
-@Composable
-private fun ColumnScope.MathPad() {
-    var expr by rememberSaveable { mutableStateOf("") }
-    val history = remember { mutableStateListOf<String>() }
-    // Display uses ×, ÷, −; the parser wants *, /, -.
-    fun plain(s: String) = s.replace('×', '*').replace('÷', '/').replace('−', '-')
-    val preview = Answers.evaluate(plain(expr))?.let { Answers.pretty(it) }
+/**
+ * The calculator's brain, working like the iPhone's: × and ÷ before + and −,
+ * the pressed operator stays lit until the next number, "=" again repeats the last step,
+ * and AC turns into C once you start typing.
+ */
+private class IosCalc {
+    /** The number being typed, exactly as typed ("12.50"); null when showing a result. */
+    var typed by mutableStateOf<String?>(null); private set
+    /** The result on the display when nothing is being typed. */
+    var current by mutableStateOf(BigDecimal.ZERO); private set
+    var selectedOp by mutableStateOf<Char?>(null); private set
+    var error by mutableStateOf(false); private set
+    /** Grey line above the number: the sum being built, or the one just worked out. */
+    var expression by mutableStateOf(""); private set
+
+    private val nums = mutableListOf<BigDecimal>()
+    private val ops = mutableListOf<Char>()
+    private var repeatOp: Char? = null
+    private var repeatArg: BigDecimal? = null
+
+    val clearLabel get() = if (!error && typed != null && typed != "0" && typed != "-0") "C" else "AC"
+
+    val display: String get() = when {
+        error -> "Error"
+        typed != null -> groupTyped(typed!!)
+        else -> formatNumber(current)
+    }
+
+    private fun value(): BigDecimal = typed?.let { BigDecimal(it.removeSuffix(".").ifEmpty { "0" }) } ?: current
 
     fun press(key: String) {
-        val last = expr.lastOrNull()
-        val isOp = { c: Char? -> c != null && c in "+−×÷%" }
-        expr = when (key) {
-            "C" -> ""
-            "⌫" -> expr.dropLast(1)
-            "=" -> preview?.also { history.add(0, "$expr = $it"); if (history.size > 3) history.removeAt(3) } ?: expr
-            "( )" -> if (expr.count { it == '(' } > expr.count { it == ')' } && (last?.isDigit() == true || last == ')')) "$expr)" else "$expr("
-            "+", "−", "×", "÷", "%" -> when {
-                expr.isEmpty() && key == "−" -> "−"
-                expr.isEmpty() -> expr
-                isOp(last) -> expr.dropLast(1) + key
-                else -> expr + key
-            }
-            else -> expr + key
+        when (key) {
+            "AC" -> allClear()
+            "C" -> clearEntry()
+            "±" -> negate()
+            "%" -> percent()
+            "=" -> equals()
+            "+" -> op('+')
+            "−" -> op('−')
+            "×" -> op('×')
+            "÷" -> op('÷')
+            else -> digit(key)
         }
     }
 
-    DisplayCard {
-        history.reversed().forEach {
-            Text(it, color = Color.White.copy(alpha = 0.5f), fontSize = 20.sp, textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    /** Swiping across the display removes the last digit, as on the iPhone. */
+    fun backspace() {
+        val t = typed ?: return
+        typed = t.dropLast(1).takeUnless { it.isEmpty() || it == "-" } ?: "0"
+        refreshExpression()
+    }
+
+    private fun digit(d: String) {
+        if (error) allClear()
+        val t = typed
+        if (t == null) {
+            typed = if (d == ".") "0." else d
+            if (nums.isEmpty()) expression = ""
+        } else if (d == ".") {
+            if ('.' !in t) typed = "$t."
+        } else if (t.count { it.isDigit() } < MAX_DIGITS) {
+            typed = when (t) { "0" -> d; "-0" -> "-$d"; else -> t + d }
         }
-        Spacer(Modifier.height(8.dp))
+        selectedOp = null
+        refreshExpression()
+    }
+
+    private fun op(o: Char) {
+        if (error) return
+        if (selectedOp != null && typed == null && ops.isNotEmpty()) {
+            ops[ops.lastIndex] = o
+        } else {
+            nums += value()
+            ops += o
+        }
+        typed = null
+        selectedOp = o
+        // Shows the part already worked out: "2 + 3 ×" shows 3, "2 × 3 +" shows 6.
+        safely {
+            val before = ops.dropLast(1)
+            current = if (o == '+' || o == '−') evaluate(nums, before)
+            else {
+                val start = before.indexOfLast { it == '+' || it == '−' } + 1
+                evaluate(nums.subList(start, nums.size), before.subList(start, before.size))
+            }
+        }
+        refreshExpression()
+    }
+
+    private fun equals() {
+        if (error) return
+        if (nums.isNotEmpty()) {
+            val arg = value()
+            val all = nums + arg
+            repeatOp = ops.last()
+            repeatArg = arg
+            val text = describe(all, ops)
+            safely { current = evaluate(all, ops) }
+            expression = text
+            nums.clear()
+            ops.clear()
+        } else {
+            val o = repeatOp ?: return
+            val arg = repeatArg ?: return
+            val start = value()
+            safely { current = evaluate(listOf(start, arg), listOf(o)) }
+            expression = describe(listOf(start, arg), listOf(o))
+        }
+        typed = null
+        selectedOp = null
+    }
+
+    private fun negate() {
+        if (error) return
+        val t = typed
+        when {
+            t != null -> typed = if (t.startsWith("-")) t.drop(1) else "-$t"
+            selectedOp != null -> { typed = "-0"; selectedOp = null }
+            else -> current = current.negate()
+        }
+        refreshExpression()
+    }
+
+    /** "200 + 10 %" means 10 % of 200, like the iPhone; otherwise it divides by 100. */
+    private fun percent() {
+        if (error) return
+        val v = value()
+        val base = if (ops.isNotEmpty() && (ops.last() == '+' || ops.last() == '−')) nums.last() else null
+        current = if (base != null) base.multiply(v).divide(BigDecimal(100), MathContext.DECIMAL64)
+        else v.divide(BigDecimal(100), MathContext.DECIMAL64)
+        typed = null
+        selectedOp = null
+        refreshExpression()
+    }
+
+    private fun clearEntry() {
+        typed = null
+        current = BigDecimal.ZERO
+        selectedOp = ops.lastOrNull()
+        refreshExpression()
+    }
+
+    private fun allClear() {
+        typed = null
+        current = BigDecimal.ZERO
+        selectedOp = null
+        error = false
+        expression = ""
+        nums.clear()
+        ops.clear()
+        repeatOp = null
+        repeatArg = null
+    }
+
+    private fun refreshExpression() {
+        if (nums.isEmpty()) return
+        expression = describe(nums, ops) + (typed?.let { groupTyped(it) } ?: "")
+    }
+
+    private inline fun safely(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: ArithmeticException) {
+            error = true
+            nums.clear()
+            ops.clear()
+            typed = null
+            selectedOp = null
+        }
+    }
+
+    private fun describe(values: List<BigDecimal>, operators: List<Char>) = buildString {
+        values.forEachIndexed { i, v ->
+            append(formatNumber(v))
+            operators.getOrNull(i)?.let { append(it) }
+        }
+    }
+
+    companion object {
+        /** × and ÷ first, then + and − from left to right. */
+        fun evaluate(values: List<BigDecimal>, operators: List<Char>): BigDecimal {
+            val terms = mutableListOf(values[0])
+            val adds = mutableListOf<Char>()
+            for (i in operators.indices) {
+                val next = values.getOrNull(i + 1) ?: break
+                when (val o = operators[i]) {
+                    '×' -> terms[terms.lastIndex] = terms.last().multiply(next, MathContext.DECIMAL64)
+                    '÷' -> {
+                        if (next.signum() == 0) throw ArithmeticException("Division by zero")
+                        terms[terms.lastIndex] = terms.last().divide(next, MathContext.DECIMAL64)
+                    }
+                    else -> { adds += o; terms += next }
+                }
+            }
+            var total = terms[0]
+            adds.forEachIndexed { i, o -> total = if (o == '+') total.add(terms[i + 1]) else total.subtract(terms[i + 1]) }
+            return total
+        }
+    }
+}
+
+/** Up to nine digits with thousands commas; very large or tiny numbers switch to 1.2345e15 style. */
+private fun formatNumber(v: BigDecimal): String {
+    if (v.signum() == 0) return "0"
+    val intDigits = v.abs().setScale(0, RoundingMode.DOWN).toPlainString().length.let { if (v.abs() < BigDecimal.ONE) 1 else it }
+    if (intDigits <= MAX_DIGITS) {
+        val r = v.setScale(MAX_DIGITS - intDigits, RoundingMode.HALF_UP).stripTrailingZeros()
+        // Rounding can carry over ("999,999,999.6"), so check the length again.
+        if (r.signum() != 0 && r.precision() - r.scale() <= MAX_DIGITS) return groupTyped(r.toPlainString())
+    }
+    val r = v.round(MathContext(6, RoundingMode.HALF_UP)).stripTrailingZeros()
+    val exp = r.precision() - r.scale() - 1
+    val mantissa = r.movePointLeft(exp).stripTrailingZeros().toPlainString()
+    return "${mantissa}e$exp"
+}
+
+/** "-1234567.50" -> "-1,234,567.50", keeping what was typed after the point. */
+private fun groupTyped(s: String): String {
+    val sign = if (s.startsWith("-")) "-" else ""
+    val body = s.removePrefix("-")
+    val int = body.substringBefore('.')
+    val rest = if ('.' in body) "." + body.substringAfter('.') else ""
+    return sign + int.reversed().chunked(3).joinToString(",").reversed() + rest
+}
+
+@Composable
+private fun ColumnScope.MathPad() {
+    val calc = remember { IosCalc() }
+    val haptics = LocalHapticFeedback.current
+    val swipe = with(LocalDensity.current) { 36.dp.toPx() }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .pointerInput(Unit) {
+                var dragged = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { dragged = 0f },
+                    onHorizontalDrag = { _, dx ->
+                        dragged += dx
+                        if (kotlin.math.abs(dragged) > swipe) {
+                            dragged = 0f
+                            calc.backspace()
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    },
+                )
+            }
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Bottom,
+        horizontalAlignment = Alignment.End,
+    ) {
         Text(
-            expr.ifEmpty { "0" },
-            color = Color.White,
-            fontSize = when {
-                expr.length > 16 -> 36.sp
-                expr.length > 10 -> 48.sp
-                else -> 64.sp
-            },
-            fontWeight = FontWeight.Light,
+            calc.expression,
+            color = KeyFn,
+            fontSize = 26.sp,
+            maxLines = 1,
             textAlign = TextAlign.End,
-            lineHeight = 70.sp,
+            softWrap = false,
         )
+        FitText(calc.display)
+    }
+    Keypad(
+        CalcKeys,
+        label = { if (it == "AC") calc.clearLabel else it },
+        selected = { it.length == 1 && it[0] == calc.selectedOp },
+    ) { calc.press(it) }
+}
+
+/** The big display number, shrinking to fit the width like the iPhone's. */
+@Composable
+private fun FitText(text: String, color: Color = Color.White, max: Float = 88f) {
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomEnd) {
+        val fontScale = LocalDensity.current.fontScale
+        // Rough width of each character in ems: digits are wide, commas and points narrow.
+        val ems = text.sumOf { if (it == ',' || it == '.') 0.28 else 0.58 }.toFloat().coerceAtLeast(1f)
+        val size = minOf(max, maxWidth.value / ems / fontScale)
         Text(
-            if (preview != null && preview != expr) "= $preview" else " ",
-            color = Coral,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Medium,
+            text,
+            color = color,
+            fontSize = size.sp,
+            lineHeight = (size * 1.15f).sp,
+            fontWeight = FontWeight.Light,
+            maxLines = 1,
+            softWrap = false,
             textAlign = TextAlign.End,
         )
     }
-    Keypad(CalcKeys, ::press)
 }
 
 @Composable
@@ -176,7 +475,7 @@ private fun ColumnScope.CurrencyPad() {
 
     fun press(key: String) {
         when (key) {
-            "C" -> amount = "0"
+            "AC" -> amount = "0"
             "⌫" -> amount = amount.dropLast(1).ifEmpty { "0" }
             "⇅" -> { val f = from; from = to; to = f }
             "↻" -> load(true)
@@ -185,21 +484,25 @@ private fun ColumnScope.CurrencyPad() {
         }
     }
 
-    DisplayCard {
-        MoneyRow(from, amount, Color.White, rates) { from = it }
-        Spacer(Modifier.height(18.dp))
-        MoneyRow(to, result, Coral, rates) { to = it }
+    Column(
+        Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Bottom,
+        horizontalAlignment = Alignment.End,
+    ) {
+        MoneyRow(from, groupTyped(amount), Color.White, rates) { from = it }
         Spacer(Modifier.height(14.dp))
+        MoneyRow(to, result, KeyOp, rates) { to = it }
+        Spacer(Modifier.height(12.dp))
         Text(
             rate?.let { "1 $from = ${Currency.money(it)} $to" } ?: " ",
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 17.sp,
+            color = KeyFn,
+            fontSize = 16.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.End,
         )
-        Text(status, color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+        Text(status, color = KeyFn.copy(alpha = 0.7f), fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
     }
-    Keypad(MoneyKeys, ::press)
+    Keypad(MoneyKeys, label = { it }, selected = { false }, onPress = ::press)
 }
 
 /** One currency line: a tappable code that opens the picker, and its amount. */
@@ -211,7 +514,7 @@ private fun MoneyRow(code: String, amount: String, color: Color, rates: Currency
             Row(
                 Modifier.bouncy { open = true }
                     .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.14f))
+                    .background(KeyDigit)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -228,67 +531,75 @@ private fun MoneyRow(code: String, amount: String, color: Color, rates: Currency
                 }
             }
         }
-        Text(
-            amount,
-            color = color,
-            fontSize = when {
-                amount.length > 12 -> 26.sp
-                amount.length > 8 -> 32.sp
-                else -> 44.sp
-            },
-            softWrap = false,
-            fontWeight = FontWeight.Light,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            modifier = Modifier.weight(1f).padding(start = 12.dp),
-        )
+        Box(Modifier.weight(1f).padding(start = 12.dp)) { FitText(amount, color, max = 48f) }
     }
 }
 
-/** Dark display card from the HaHo kit. */
+/** Round iPhone keys; a lone "0" key spans two columns. */
 @Composable
-private fun ColumnScope.DisplayCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth()
-            .weight(1f)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Charcoal)
-            .padding(22.dp),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.End,
-        content = content,
-    )
-}
-
-@Composable
-private fun Keypad(rows: List<List<String>>, onPress: (String) -> Unit) {
-    Spacer(Modifier.height(14.dp))
-    Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        rows.forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { key -> CalcKey(key, Modifier.weight(1f)) { onPress(key) } }
+private fun Keypad(
+    rows: List<List<String>>,
+    label: (String) -> String,
+    selected: (String) -> Boolean,
+    onPress: (String) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp)) {
+        val gap = 14.dp
+        val key = (maxWidth - gap * 3) / 4
+        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+            rows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    row.forEach { k ->
+                        val wide = row.size == 3 && k == "0"
+                        CalcKey(
+                            label(k),
+                            width = if (wide) key * 2 + gap else key,
+                            height = key,
+                            selected = selected(k),
+                        ) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onPress(label(k))
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CalcKey(key: String, modifier: Modifier, onClick: () -> Unit) {
-    val (bg, fg) = when (key) {
-        "=" -> Coral to Color.White
-        "+", "−", "×", "÷", "⇅", "↻" -> Charcoal to Color.White
-        "C", "( )", "%", "⌫" -> Card to Coral
-        else -> CardHi to TextPrimary
+private fun CalcKey(key: String, width: Dp, height: Dp, selected: Boolean, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val isOp = key in setOf("÷", "×", "−", "+", "=", "⇅", "↻")
+    val isFn = key in setOf("AC", "C", "±", "%", "⌫")
+    val (up, down, fg) = when {
+        isOp && selected -> Triple(Color.White, Color.White, KeyOp)
+        isOp -> Triple(KeyOp, KeyOpDown, Color.White)
+        isFn -> Triple(KeyFn, KeyFnDown, Color.Black)
+        else -> Triple(KeyDigit, KeyDigitDown, Color.White)
     }
+    // Brightens instantly on touch and fades back on release, like the iPhone keys.
+    val bg by animateColorAsState(if (pressed) down else up, tween(if (pressed) 0 else 300), label = "key")
     Box(
-        modifier.bouncy(onClick = onClick)
-            .aspectRatio(1.25f)
-            .clip(RoundedCornerShape(22.dp))
-            .background(bg),
-        contentAlignment = Alignment.Center,
+        Modifier
+            .size(width, height)
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .clickable(source, indication = null, onClick = onClick),
+        contentAlignment = if (width > height) Alignment.CenterStart else Alignment.Center,
     ) {
-        Text(key, color = fg, fontSize = 32.sp, fontWeight = FontWeight.Medium)
+        Text(
+            key,
+            color = fg,
+            fontSize = when {
+                isOp -> 40.sp
+                isFn -> 30.sp
+                else -> 36.sp
+            },
+            fontWeight = FontWeight.Normal,
+            modifier = if (width > height) Modifier.padding(start = height * 0.36f) else Modifier,
+        )
     }
 }
