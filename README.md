@@ -14,7 +14,7 @@
 <p align="center">
   <img alt="Version" src="https://img.shields.io/github/v/release/Janardanpal007/mobile-handler?label=version&color=D65F4E">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-A8CDA0">
-  <img alt="Size" src="https://img.shields.io/badge/APK-41%20MB-A5C8DB">
+  <img alt="Size" src="https://img.shields.io/badge/APK-50%20MB-A5C8DB">
   <img alt="Free" src="https://img.shields.io/badge/price-free-D8C966">
 </p>
 
@@ -28,9 +28,10 @@
 | 02 | **Ad Blocker** | Blocks ads in every app and browser with Android's Private DNS (AdGuard or Mullvad). No VPN slot used. Also finds trackers hidden inside your apps. |
 | 03 | **Photo Enhancer** | Makes photos HD (4× resolution), restores old pictures and colorizes black & white ones, on the phone, with open-source AI. |
 | 04 | **Scan Document & Scan QR** | Turns paper into clean PDFs and reads any QR code (links, Wi-Fi, text). **Photos → PDF** combines images into one PDF. |
-| 05 | **Assistant** | Type what you need ("scan a document", "clean my phone") and it opens the right tool. |
+| 05 | **Office tools** | **PDF Reader** (read, draw, highlight, add notes, merge, split, compress), **Word** (.docx) and **Excel** (.xlsx and CSV with formulas). |
+| 06 | **Assistant** | Type what you need ("scan a document", "merge PDFs", "loan EMI") and it opens the right tool. |
 
-Also included: **Calculator** with currency converter, **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
+Also included: an iPhone-style **Calculator** with scientific and finance modes (EMI, SIP, GST), currency converter and a floating calculator, **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
 
 ## Screenshots
 
@@ -65,8 +66,16 @@ The QR and document scanners come from Google Play services, so the first scan m
 ## Credits
 
 Photo AI models: [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) and [DDColor](https://github.com/piddnad/DDColor), open source.
-Phone Cleaner uses [Shizuku](https://github.com/RikkaApps/Shizuku). Scanners by Google ML Kit.
+Phone Cleaner uses [Shizuku](https://github.com/RikkaApps/Shizuku). Scanners by Google ML Kit. PDF editing uses [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android).
+
+## Developer
+
+**Janardan Pal** · [GitHub](https://github.com/Janardanpal007) · [LinkedIn](https://www.linkedin.com/in/janardan-pal) · [Discord](https://discord.dog/704385778809307226)
 
 ---
 
-<p align="center">Built by <b>Janardan / TSE</b></p>
+<p align="center">Built by <b>Janardan Pal</b> ·
+  <a href="https://github.com/Janardanpal007">GitHub</a> ·
+  <a href="https://www.linkedin.com/in/janardan-pal">LinkedIn</a> ·
+  <a href="https://discord.dog/704385778809307226">Discord</a>
+</p>
