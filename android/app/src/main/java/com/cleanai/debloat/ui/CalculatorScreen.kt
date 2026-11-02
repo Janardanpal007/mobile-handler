@@ -1,6 +1,8 @@
 package com.cleanai.debloat.ui
 
 import android.app.Activity
+import android.content.res.Configuration
+import com.cleanai.debloat.overlay.FloatingCalcService
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -46,6 +48,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
@@ -63,12 +67,12 @@ import java.math.RoundingMode
 import kotlinx.coroutines.launch
 
 // iPhone calculator colours.
-private val KeyDigit = Color(0xFF333333)
-private val KeyDigitDown = Color(0xFF737373)
-private val KeyFn = Color(0xFFA5A5A5)
-private val KeyFnDown = Color(0xFFD9D9D9)
-private val KeyOp = Color(0xFFFF9F0A)
-private val KeyOpDown = Color(0xFFFCC78D)
+internal val KeyDigit = Color(0xFF333333)
+internal val KeyDigitDown = Color(0xFF737373)
+internal val KeyFn = Color(0xFFA5A5A5)
+internal val KeyFnDown = Color(0xFFD9D9D9)
+internal val KeyOp = Color(0xFFFF9F0A)
+internal val KeyOpDown = Color(0xFFFCC78D)
 private val SegmentBg = Color(0xFF1C1C1E)
 private val SegmentOn = Color(0xFF636366)
 
@@ -89,10 +93,29 @@ private val MoneyKeys = listOf(
     listOf("00", "0", ".", "↻"),
 )
 
-/** iPhone-style calculator with a second tab for live currency conversion. */
+/** Calculator state lives here so a half-typed sum survives rotating the phone or leaving the screen. */
+internal object CalcMemory {
+    val basic = IosCalc()
+    val sci = SciCalc()
+
+    /** Set by the assistant ("scientific calculator", "loan EMI") to open a particular tab. */
+    @Volatile var requestedTab: Int? = null
+}
+
+/** Height a keypad may use, so landscape keys shrink instead of running off the screen. */
+@Composable
+internal fun keypadHeightLimit(): Dp = (LocalConfiguration.current.screenHeightDp * 0.62f).dp
+
+/**
+ * iPhone-style calculator. Tabs: Basic, Scientific (also shown when Basic is turned sideways, like the iPhone),
+ * Finance (loan EMI, SIP, compound interest, GST) and live Currency conversion.
+ */
 @Composable
 fun CalculatorScreen(onBack: () -> Unit) {
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable { mutableStateOf(CalcMemory.requestedTab ?: 0) }
+    LaunchedEffect(Unit) { CalcMemory.requestedTab = null }
+    val ctx = LocalContext.current
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     LightSystemBars()
     Column(
         Modifier
@@ -110,11 +133,33 @@ fun CalculatorScreen(onBack: () -> Unit) {
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
             }
-            Spacer(Modifier.width(12.dp))
-            Segments(listOf("Calculator", "Currency"), tab, Modifier.weight(1f)) { tab = it }
-            Spacer(Modifier.width(56.dp))
+            Text(
+                "Calculator",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+            // Opens the small calculator that floats over other apps.
+            Box(
+                Modifier.bouncy { FloatingCalcService.start(ctx) }.size(44.dp).clip(CircleShape).background(KeyDigit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("⧉", color = KeyOp, fontSize = 22.sp)
+            }
         }
-        if (tab == 0) MathPad() else CurrencyPad()
+        Segments(
+            listOf("Basic", "Scientific", "Finance", "Currency"),
+            tab,
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) { tab = it }
+        when (tab) {
+            0 -> if (landscape) ScientificPad(CalcMemory.sci) else MathPad()
+            1 -> ScientificPad(CalcMemory.sci)
+            2 -> FinancePad()
+            else -> CurrencyPad()
+        }
     }
 }
 
@@ -165,7 +210,7 @@ private fun Segments(labels: List<String>, selected: Int, modifier: Modifier, on
  * the pressed operator stays lit until the next number, "=" again repeats the last step,
  * and AC turns into C once you start typing.
  */
-private class IosCalc {
+internal class IosCalc {
     /** The number being typed, exactly as typed ("12.50"); null when showing a result. */
     var typed by mutableStateOf<String?>(null); private set
     /** The result on the display when nothing is being typed. */
@@ -362,7 +407,7 @@ private class IosCalc {
 }
 
 /** Up to nine digits with thousands commas; very large or tiny numbers switch to 1.2345e15 style. */
-private fun formatNumber(v: BigDecimal): String {
+internal fun formatNumber(v: BigDecimal): String {
     if (v.signum() == 0) return "0"
     val intDigits = v.abs().setScale(0, RoundingMode.DOWN).toPlainString().length.let { if (v.abs() < BigDecimal.ONE) 1 else it }
     if (intDigits <= MAX_DIGITS) {
@@ -377,7 +422,7 @@ private fun formatNumber(v: BigDecimal): String {
 }
 
 /** "-1234567.50" -> "-1,234,567.50", keeping what was typed after the point. */
-private fun groupTyped(s: String): String {
+internal fun groupTyped(s: String): String {
     val sign = if (s.startsWith("-")) "-" else ""
     val body = s.removePrefix("-")
     val int = body.substringBefore('.')
@@ -387,7 +432,7 @@ private fun groupTyped(s: String): String {
 
 @Composable
 private fun ColumnScope.MathPad() {
-    val calc = remember { IosCalc() }
+    val calc = CalcMemory.basic
     val haptics = LocalHapticFeedback.current
     val swipe = with(LocalDensity.current) { 36.dp.toPx() }
 
@@ -432,7 +477,7 @@ private fun ColumnScope.MathPad() {
 
 /** The big display number, shrinking to fit the width like the iPhone's. */
 @Composable
-private fun FitText(text: String, color: Color = Color.White, max: Float = 88f) {
+internal fun FitText(text: String, color: Color = Color.White, max: Float = 88f) {
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomEnd) {
         val fontScale = LocalDensity.current.fontScale
         // Rough width of each character in ems: digits are wide, commas and points narrow.
@@ -544,9 +589,13 @@ private fun Keypad(
     onPress: (String) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp)) {
+    val heightLimit = keypadHeightLimit()
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         val gap = 14.dp
-        val key = (maxWidth - gap * 3) / 4
+        val key = minOf((maxWidth - gap * 3) / 4, (heightLimit - gap * (rows.size - 1)) / rows.size)
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             rows.forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
