@@ -500,12 +500,7 @@ private fun ColumnScope.MathPad() {
         horizontalAlignment = Alignment.End,
     ) {
         val ed = editing
-        CalcTools(
-            editEnabled = ed != null || calc.expression.isNotEmpty() || calc.display != "0",
-            editLabel = if (ed != null) "✓  Done" else "✎  Edit",
-            onHistory = { history = true },
-            onEdit = { editing = if (ed != null) null else SumEditor(editStart()) },
-        )
+        CalcTools(onHistory = { history = true })
         Spacer(Modifier.weight(1f))
         if (ed != null) {
             SumField(ed)
@@ -516,7 +511,7 @@ private fun ColumnScope.MathPad() {
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp),
             )
         } else {
-            // Tap the sum to put a cursor in it and change it.
+            // Tap the sum or the number to put a cursor in it and change it.
             Text(
                 calc.expression,
                 color = KeyFn,
@@ -526,9 +521,11 @@ private fun ColumnScope.MathPad() {
                 softWrap = false,
                 modifier = Modifier.clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
             )
-            FitText(calc.display)
+            Box(Modifier.clickable(enabled = editStart().isNotEmpty()) { editing = SumEditor(editStart()) }) { FitText(calc.display) }
         }
     }
+    // Back leaves editing without changing anything.
+    androidx.activity.compose.BackHandler(enabled = editing != null) { editing = null }
     if (history) HistoryDialog(onDismiss = { history = false }) { e -> history = false; editing = SumEditor(e.expr) }
     Keypad(
         CalcKeys,

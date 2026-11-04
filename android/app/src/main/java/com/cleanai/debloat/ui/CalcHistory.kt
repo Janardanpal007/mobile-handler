@@ -142,12 +142,11 @@ internal fun EditCalcDialog(start: String, degrees: Boolean = true, onDismiss: (
     )
 }
 
-/** "🕘 History" and "✎ Edit" above a calculator's display. */
+/** "🕘 History" above a calculator's display. To edit, you tap the sum itself. */
 @Composable
-internal fun CalcTools(editEnabled: Boolean, onHistory: () -> Unit, onEdit: () -> Unit, editLabel: String = "✎  Edit") {
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+internal fun CalcTools(onHistory: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
         ToolPill("🕘  History", true, onHistory)
-        ToolPill(editLabel, editEnabled, onEdit)
     }
 }
 

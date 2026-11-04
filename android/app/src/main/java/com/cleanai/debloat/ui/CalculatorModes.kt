@@ -176,11 +176,7 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.End,
     ) {
-        CalcTools(
-            editEnabled = calc.expr.isNotEmpty() || calc.result != null,
-            onHistory = { history = true },
-            onEdit = { edit = if (calc.result != null) calc.lastExpr else calc.expr },
-        )
+        CalcTools(onHistory = { history = true })
         Spacer(Modifier.weight(1f))
         Text(
             if (calc.degrees) "DEG" else "RAD",
@@ -191,7 +187,7 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
         )
         val result = calc.result
         if (result != null) {
-            Text(calc.lastExpr, color = KeyFn, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 2)
+            Text(calc.lastExpr, color = KeyFn, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 2, modifier = Modifier.clickable { edit = calc.lastExpr })
             FitText(result, max = 72f)
         } else {
             val shown = calc.expr.ifEmpty { "0" }
@@ -207,6 +203,8 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
                 fontWeight = FontWeight.Light,
                 textAlign = TextAlign.End,
                 maxLines = 3,
+                // Tap the sum to change it.
+                modifier = Modifier.clickable(enabled = calc.expr.isNotEmpty()) { edit = calc.expr },
             )
             Text(calc.error ?: calc.preview?.let { "= $it" } ?: " ", color = if (calc.error != null) KeyOp else KeyFn, fontSize = 24.sp)
         }

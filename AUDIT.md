@@ -95,7 +95,7 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 
 **Calculator** (`ui/CalculatorScreen.kt`, `ui/CalculatorModes.kt`, `overlay/FloatingCalcService.kt`)
 - Tabs: Basic (iPhone-style), Scientific (sin/cos/tan, ln/log, √, xʸ, x!, π, e, Ans, Deg/Rad), Finance (Loan EMI, SIP, compound interest, GST add/remove with CGST/SGST), Currency.
-- Edit a calculation like on Samsung phones: tap the sum (or ✎ Edit), tap where the cursor should go, change it with the keypad (⌫ deletes, C clears), and the answer updates as you type; = keeps it. The Scientific tab edits in a small box with the same live answer.
+- Edit a calculation like on Samsung phones: tap the sum or the answer, tap where the cursor should go, change it with the keypad (⌫ deletes, C clears), and the answer updates as you type; = keeps it. Back leaves editing unchanged. On the Scientific tab, tapping the sum opens a small box with the same live answer.
 - History: the last 100 calculations from Basic, Scientific and the floating calculator, kept privately on the phone; tap one to edit and reuse it, or clear them all.
 - Floating calculator: tap ⧉; draggable, can be collapsed, long-press the display to copy. Runs as a foreground service with a notification only while it is open.
 
