@@ -250,7 +250,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             steps = listOf(
                 "\"Clean my phone\" or \"block ads\" — safe, and every change can be undone.",
                 "\"Scan a QR\", \"scan a document\", \"make a PDF\", \"open calculator\".",
-                "\"Merge PDFs\", \"open Word\", \"new spreadsheet\", \"loan EMI\", \"floating calculator\".",
+                "\"Merge PDFs\", \"open Word\", \"new spreadsheet\", \"make a note\", \"loan EMI\", \"floating calculator\".",
                 "\"What is 25 x 4\", \"what's the time\", \"clear chat\", \"open settings\".",
                 if (privateMode) "🔒 Private mode is on: everything stays on this phone."
                 else "🌐 Online mode: weather, currency and web tips are on.",
@@ -847,6 +847,9 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 return openFeature(Features.byId("calculator")!!)
             }
             Regex("""\b(excel|spreadsheets?|xlsx|csv)\b""").containsMatchIn(t) -> return openFeature(Features.byId("excel")!!)
+            // "Make a note", "my notes", "to-do list" (but "scan my notes" is still the document scanner).
+            Regex("""\b(notes?|notepad|checklists?|to-?do( list)?s?|memos?|jot)\b""").containsMatchIn(t) && !Regex("""\bscan\w*|\b(release|patch|update|version) notes?\b""").containsMatchIn(t) ->
+                return openFeature(Features.byId("notes")!!)
             Regex("""\b(docx|ms word|word (doc|document|file)s?|write an? (document|letter))\b""").containsMatchIn(t) -> return openFeature(Features.byId("word")!!)
             Regex("""\bpdfs?\b""").containsMatchIn(t) && !Regex("""\b(photos?|images?|pictures?|pics?|jpe?gs?|scan\w*)\b""").containsMatchIn(t) &&
                 Regex("""\b(read|view|open|edit|merge|combine|join|split|extract|compress|shrink|reduce|annotate|highlight|draw|sign|remove|delete)\b|reader|editor|viewer""").containsMatchIn(t) ->

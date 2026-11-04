@@ -49,6 +49,7 @@ private val headlines = mapOf(
     "cleaner" to ("Clean out" to "bloatware"),
     "adblock" to ("Block" to "ads & trackers"),
     "calculator" to ("Do the" to "maths"),
+    "notes" to ("Jot it" to "down"),
     "qr" to ("Scan any" to "QR code"),
     "docscan" to ("Scan pages" to "into PDFs"),
     "pdf" to ("Turn photos" to "into a PDF"),
