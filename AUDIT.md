@@ -68,13 +68,13 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 **PDF Reader & Editor** (`ui/PdfScreen.kt`, `ui/PdfEditorScreen.kt`, `data/PdfDoc.kt`, `data/PdfEdit.kt`)
 - Open any PDF from the phone or one already in My Files. Pages scroll like a reader, two fingers zoom, and every tool works right on the page.
 - **Edit text:** tap a line of existing text, change or delete it. The old words are covered with the page colour and the new text is written in a matching font (sans, serif or mono, bold), size and colour.
-- **Add:** text boxes (4 sizes, bold, 6 colours), pen (3 widths), highlight / underline / strike-out that snaps to the words (a see-through marker on scans), rectangle, oval, line, arrow, a drawn signature (kept on the phone for next time), pictures from the gallery. Eraser.
+- **Add:** text boxes (4 sizes, bold, 6 colours), pen (3 widths), highlight / underline / strike-out that snaps to the words (a see-through marker on scans), rectangle, oval, line, arrow, signatures (up to 6 kept privately on the phone to pick from, each one can be deleted), stamps (Approved, Paid, Draft, Confidential and more, or your own words; red, green or blue; optional date), pictures from the gallery. Eraser.
 - **Change what you added:** tap or drag to select and move, drag the corner to resize, recolour, edit or delete. Undo and redo.
 - **Pages:** rotate, reorder, delete, add blank pages.
 - Signatures and pictures go on the page you are looking at (the page under the middle of the screen), where you are looking on it; the page counter uses the same page.
 - **Save** writes back to the same file (or *Save as a copy* when the folder doesn't allow changes); asks before leaving with unsaved work. Added items are saved as standard PDF annotations with their own appearance, so other PDF apps show them, and this app can still move or delete them later.
-- Merge (choose order), extract pages, remove pages (`1-3, 5` style ranges), compress (re-saves pictures as JPEG; keeps the original if it would not get smaller).
-- Limits: an edited line's original text is covered, not removed, so search or copy-paste in other apps can still find it; text editing works one line at a time and not on pages turned inside the editor until saved; scanned pages have no text to edit; password-protected PDFs are not opened; no form filling.
+- Merge (choose order), extract pages, remove pages (`1-3, 5` style ranges), compress (re-saves pictures as JPEG; keeps the original if it would not get smaller), watermark (diagonal text on every page, 4 colours, 3 strengths, any language), password: lock a copy with AES-256, or save an unlocked copy when you know the password (checked before saving; the password is never stored).
+- Limits: an edited line's original text is covered, not removed, so search or copy-paste in other apps can still find it; text editing works one line at a time and not on pages turned inside the editor until saved; scanned pages have no text to edit; password-protected PDFs open in the editor only after the Password tool saves an unlocked copy; no form filling.
 
 **Notes** (`ui/NotesScreen.kt`, `data/Notes.kt`)
 - Text notes and checklists (Enter adds an item, ticked items move to the bottom, clear ticked), switch a note between text and checklist.
