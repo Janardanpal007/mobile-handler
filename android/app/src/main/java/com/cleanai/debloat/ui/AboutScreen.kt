@@ -1,11 +1,18 @@
 package com.cleanai.debloat.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,13 +34,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-const val DEVELOPER = "Janardan"
-const val STUDIO = "TSE"
-const val BUILT_BY = "Built by $DEVELOPER / $STUDIO"
+const val DEVELOPER = "Janardan Pal"
+const val BUILT_BY = "Built by $DEVELOPER"
+
+/** Where people can reach the developer; each opens in the matching app or the browser. */
+private val Links = listOf(
+    Triple("GitHub", "github.com/Janardanpal007", "https://github.com/Janardanpal007"),
+    Triple("LinkedIn", "linkedin.com/in/janardan-pal", "https://www.linkedin.com/in/janardan-pal"),
+    Triple("Discord", "Add me on Discord", "https://discord.dog/704385778809307226"),
+)
 
 private val Policy = listOf(
     "Who we are" to
-        "Mobile Handler is developed and maintained by $DEVELOPER ($STUDIO). For questions about this app or this policy, contact the developer.",
+        "Mobile Handler is developed and maintained by $DEVELOPER. For questions about this app or this policy, contact the developer through the links above.",
     "Private mode — on by default" to
         "With Private mode on, Mobile Handler sends nothing to any company or website. Everything happens on your phone.",
     "What stays on your phone" to
@@ -81,6 +94,38 @@ fun AboutScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 StatusChip(BUILT_BY, Coral)
             }
+            Text("Connect with me", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp, start = 4.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(CardHi)
+                    .border(1.dp, Line, RoundedCornerShape(22.dp)),
+            ) {
+                Links.forEachIndexed { i, (name, handle, url) ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                                    .onFailure { Toast.makeText(ctx, "No app can open $url", Toast.LENGTH_SHORT).show() }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(Charcoal), contentAlignment = Alignment.Center) {
+                            Text(name.take(1), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(name, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(handle, color = TextSecondary, fontSize = 13.sp)
+                        }
+                        Text("↗", color = TextSecondary, fontSize = 18.sp)
+                    }
+                }
+            }
             Text("Privacy policy", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp, start = 4.dp))
             Policy.forEach { (title, body) ->
                 Column(
@@ -97,7 +142,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 }
             }
             Text(
-                "© 2026 $DEVELOPER / $STUDIO",
+                "© 2026 $DEVELOPER",
                 color = TextSecondary,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,

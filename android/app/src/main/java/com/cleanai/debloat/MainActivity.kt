@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
         // About once a day, quietly look for a new version and notify (Settings > App updates).
         lifecycleScope.launch { Updates.backgroundCheck(applicationContext) }
         askNotificationsOnce()
+        openRequested(intent)
         // The chat asks for scanners / pickers / permissions through vm.launch.
         lifecycleScope.launch {
             snapshotFlow { vm.launch }.filterNotNull().collect { what ->
@@ -82,10 +83,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openRequested(intent)
+    }
+
+    /** The floating calculator's title opens the full calculator here. */
+    private fun openRequested(intent: Intent?) {
+        intent?.getStringExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)?.let { vm.show(it) }
+        intent?.removeExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)
+    }
+
     override fun onResume() {
         super.onResume()
         // The user often comes back from Shizuku or Settings; refresh the connection pill.
         vm.refreshShizuku()
+        // Back from allowing "Display over other apps": open the floating calculator that was asked for.
+        com.cleanai.debloat.overlay.FloatingCalcService.resumeIfAllowed(this)
     }
 
     private val notifyPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}

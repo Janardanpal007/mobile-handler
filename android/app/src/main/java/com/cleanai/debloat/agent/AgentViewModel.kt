@@ -170,6 +170,11 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         openScreen = null
     }
 
+    /** Opens a feature screen from outside the chat, e.g. the floating calculator's "back to app". */
+    fun show(screen: String) {
+        openScreen = screen
+    }
+
     /** "Hi Janardan, how can I help you?" */
     fun helloLine() = if (userName.isBlank()) "Hi! How can I help you?" else "Hi $userName, how can I help you?"
 

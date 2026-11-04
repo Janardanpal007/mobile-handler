@@ -29,7 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -115,6 +117,7 @@ fun CalculatorScreen(onBack: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(CalcMemory.requestedTab ?: 0) }
     LaunchedEffect(Unit) { CalcMemory.requestedTab = null }
     val ctx = LocalContext.current
+    var askOverlay by remember { mutableStateOf(false) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     LightSystemBars()
     Column(
@@ -143,11 +146,27 @@ fun CalculatorScreen(onBack: () -> Unit) {
             )
             // Opens the small calculator that floats over other apps.
             Box(
-                Modifier.bouncy { FloatingCalcService.start(ctx) }.size(44.dp).clip(CircleShape).background(KeyDigit),
+                Modifier.bouncy {
+                    if (FloatingCalcService.canShow(ctx)) FloatingCalcService.start(ctx) else askOverlay = true
+                }.size(44.dp).clip(CircleShape).background(KeyDigit),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("⧉", color = KeyOp, fontSize = 22.sp)
             }
+        }
+        if (askOverlay) {
+            AlertDialog(
+                onDismissRequest = { askOverlay = false },
+                title = { Text("Floating calculator") },
+                text = {
+                    Text(
+                        "To keep a calculator on top of other apps, Android needs \"Display over other apps\" for Mobile Handler.\n\n" +
+                            "On the next screen, switch Mobile Handler on and come back. The calculator opens by itself.",
+                    )
+                },
+                confirmButton = { TextButton(onClick = { askOverlay = false; FloatingCalcService.start(ctx) }) { Text("Open settings") } },
+                dismissButton = { TextButton(onClick = { askOverlay = false }) { Text("Not now") } },
+            )
         }
         Segments(
             listOf("Basic", "Scientific", "Finance", "Currency"),

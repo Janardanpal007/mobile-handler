@@ -191,7 +191,7 @@ fun SettingsScreen(
                 }
                 Divider()
                 SettingRow(icon = null, tint = Color.Transparent, title = "Developer", subtitle = null, onClick = null) {
-                    Text("$DEVELOPER / $STUDIO", color = TextSecondary, fontSize = 15.sp)
+                    Text(DEVELOPER, color = TextSecondary, fontSize = 15.sp)
                 }
             }
             Text(
