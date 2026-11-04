@@ -134,25 +134,16 @@ fun CalculatorScreen(onBack: () -> Unit) {
             .background(Color.Black)
             .systemBarsPadding(),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        val back: @Composable () -> Unit = {
             Box(
                 Modifier.bouncy(onClick = onBack).size(44.dp).clip(CircleShape).background(KeyDigit),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
             }
-            Text(
-                "Calculator",
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
-            )
-            // Opens the small calculator that floats over other apps.
+        }
+        // Opens the small calculator that floats over other apps.
+        val float: @Composable () -> Unit = {
             Box(
                 Modifier.bouncy {
                     if (FloatingCalcService.canShow(ctx)) FloatingCalcService.start(ctx) else askOverlay = true
@@ -161,6 +152,35 @@ fun CalculatorScreen(onBack: () -> Unit) {
             ) {
                 Text("⧉", color = KeyOp, fontSize = 22.sp)
             }
+        }
+        val tabs = listOf("Basic", "Scientific", "Finance", "Currency")
+        if (landscape) {
+            // Sideways the screen is short: back, tabs and ⧉ share one line.
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                back()
+                Segments(tabs, tab, Modifier.weight(1f).padding(horizontal = 12.dp)) { tab = it }
+                float()
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                back()
+                Text(
+                    "Calculator",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+                float()
+            }
+            Segments(tabs, tab, Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { tab = it }
         }
         if (askOverlay) {
             AlertDialog(
@@ -176,11 +196,6 @@ fun CalculatorScreen(onBack: () -> Unit) {
                 dismissButton = { TextButton(onClick = { askOverlay = false }) { Text("Not now") } },
             )
         }
-        Segments(
-            listOf("Basic", "Scientific", "Finance", "Currency"),
-            tab,
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        ) { tab = it }
         when (tab) {
             0 -> if (landscape) ScientificPad(CalcMemory.sci) else MathPad()
             1 -> ScientificPad(CalcMemory.sci)

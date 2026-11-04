@@ -1,5 +1,8 @@
 package com.cleanai.debloat.ui
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -171,12 +174,27 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
     edit?.let { start ->
         EditCalcDialog(start, calc.degrees, onDismiss = { edit = null }) { text, _ -> edit = null; calc.load(text) }
     }
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    if (landscape) {
+        // Sideways there isn't room above the keys, so the display sits beside them.
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            SciDisplay(calc, Modifier.weight(0.36f).fillMaxHeight(), onHistory = { history = true }, onEdit = { edit = it })
+            SciKeypad(calc, Modifier.weight(0.64f).fillMaxHeight(), fillHeight = true)
+        }
+    } else {
+        SciDisplay(calc, Modifier.fillMaxWidth().weight(1f), onHistory = { history = true }, onEdit = { edit = it })
+        SciKeypad(calc, Modifier.fillMaxWidth(), fillHeight = false)
+    }
+}
+
+@Composable
+private fun SciDisplay(calc: SciCalc, modifier: Modifier, onHistory: () -> Unit, onEdit: (String) -> Unit) {
     Column(
-        Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp),
+        modifier.padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.End,
     ) {
-        CalcTools(onHistory = { history = true })
+        CalcTools(onHistory = onHistory)
         Spacer(Modifier.weight(1f))
         Text(
             if (calc.degrees) "DEG" else "RAD",
@@ -187,7 +205,7 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
         )
         val result = calc.result
         if (result != null) {
-            Text(calc.lastExpr, color = KeyFn, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 2, modifier = Modifier.clickable { edit = calc.lastExpr })
+            Text(calc.lastExpr, color = KeyFn, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 2, modifier = Modifier.clickable { onEdit(calc.lastExpr) })
             FitText(result, max = 72f)
         } else {
             val shown = calc.expr.ifEmpty { "0" }
@@ -204,20 +222,26 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
                 textAlign = TextAlign.End,
                 maxLines = 3,
                 // Tap the sum to change it.
-                modifier = Modifier.clickable(enabled = calc.expr.isNotEmpty()) { edit = calc.expr },
+                modifier = Modifier.clickable(enabled = calc.expr.isNotEmpty()) { onEdit(calc.expr) },
             )
             Text(calc.error ?: calc.preview?.let { "= $it" } ?: " ", color = if (calc.error != null) KeyOp else KeyFn, fontSize = 24.sp)
         }
     }
+}
+
+@Composable
+private fun SciKeypad(calc: SciCalc, modifier: Modifier, fillHeight: Boolean) {
     val haptics = LocalHapticFeedback.current
     val heightLimit = keypadHeightLimit()
     BoxWithConstraints(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 12.dp),
+        modifier.padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         val gap = 10.dp
         val w = (maxWidth - gap * 4) / 5
-        val h = minOf(w * 0.74f, (heightLimit - gap * (SciKeys.size - 1)) / SciKeys.size)
+        // Sideways, the keys share the height that is left; upright, they keep to the usual limit.
+        val room = if (fillHeight) maxHeight else heightLimit
+        val h = minOf(w * 0.74f, (room - gap * (SciKeys.size - 1)) / SciKeys.size)
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             SciKeys.forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -254,7 +278,9 @@ private fun SciKey(key: String, width: Dp, height: Dp, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         val digit = key.length == 1 && (key[0].isDigit() || key[0] in "÷×−+=.")
-        Text(key, color = fg, fontSize = if (digit) 26.sp else 18.sp)
+        // Smaller keys (sideways) get smaller labels so nothing is cut off.
+        val cap = height.value * if (digit) 0.5f else 0.4f
+        Text(key, color = fg, fontSize = minOf(if (digit) 26f else 18f, cap).sp, maxLines = 1)
     }
 }
 
