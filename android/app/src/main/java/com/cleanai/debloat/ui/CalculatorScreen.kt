@@ -531,7 +531,8 @@ private fun ColumnScope.MathPad() {
         CalcKeys,
         label = {
             when {
-                editing != null && it == "AC" -> "C"
+                // C empties the sum; once it is empty the key turns into AC.
+                editing != null && it == "AC" -> if (editing!!.text.isEmpty()) "AC" else "C"
                 editing != null && it == "±" -> "⌫"
                 it == "AC" -> calc.clearLabel
                 else -> it
@@ -543,7 +544,8 @@ private fun ColumnScope.MathPad() {
         if (ed == null) calc.press(key)
         else when (key) {
             // The keypad reports the label it shows.
-            "AC", "C" -> ed.clear()
+            "C" -> ed.clear()
+            "AC" -> { editing = null; calc.press("AC") }
             "±", "⌫" -> ed.backspace()
             "=" -> {
                 val answer = ed.answer()
@@ -587,8 +589,8 @@ private fun SumField(ed: SumEditor) {
     )
     val shown = ed.text
     Text(
-        shown.ifEmpty { " " },
-        color = Color.White,
+        shown.ifEmpty { "0" },
+        color = if (shown.isEmpty()) KeyFn else Color.White,
         fontSize = when { shown.length > 24 -> 30.sp; shown.length > 12 -> 40.sp; else -> 56.sp },
         lineHeight = when { shown.length > 24 -> 36.sp; shown.length > 12 -> 48.sp; else -> 64.sp },
         fontWeight = FontWeight.Light,
