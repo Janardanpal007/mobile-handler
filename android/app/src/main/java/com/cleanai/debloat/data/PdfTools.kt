@@ -79,7 +79,7 @@ object PdfTools {
     )
 
     /** Decodes at most ~2000 px on the long side and applies the photo's rotation. */
-    private fun loadScaled(ctx: Context, uri: Uri): Bitmap? = runCatching {
+    internal fun loadScaled(ctx: Context, uri: Uri): Bitmap? = runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         ctx.contentResolver.openInputStream(uri)!!.use { BitmapFactory.decodeStream(it, null, bounds) }
         var sample = 1

@@ -81,7 +81,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cleanai.debloat.data.MyFiles
 import com.cleanai.debloat.data.PdfEdit
-import com.cleanai.debloat.data.PdfMark
 import com.cleanai.debloat.data.PdfPages
 import kotlinx.coroutines.launch
 
@@ -150,7 +149,7 @@ fun PdfScreen(onBack: () -> Unit) {
     }
 
     open?.let { uri ->
-        PdfReader(uri, onClose = { open = null }, onSaved = { open = it })
+        PdfEditorScreen(uri, onClose = { open = null })
         return
     }
 
@@ -182,7 +181,7 @@ fun PdfScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
-                BigAction("Open a PDF", "Read, zoom, draw, highlight or add text") { tool = null; pickOne.launch(arrayOf("application/pdf")) }
+                BigAction("Open a PDF", "Edit text, sign, add pictures, highlight and more") { choose(null) }
                 Text("Tools", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
                 PdfTool.entries.forEach { t ->
                     ToolRow(t.title, t.blurb) {
@@ -303,255 +302,6 @@ fun PdfScreen(onBack: () -> Unit) {
 }
 
 private fun kb(bytes: Long) = if (bytes >= 1_000_000) String.format("%.1f MB", bytes / 1e6) else "${bytes / 1000} KB"
-
-// ---------------------------------------------------------------- reader
-
-private val InkColors = listOf(Color(0xFF1E1E1E), Color(0xFFD64535), Color(0xFF2F6FDB), Color(0xFF2E9E5B))
-private val HighlightColor = Color(0xFFFFE14D)
-
-private enum class Pen { PEN, HIGHLIGHT, TEXT }
-
-@Composable
-private fun PdfReader(uri: Uri, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val pages = remember(uri) { runCatching { PdfPages(ctx, uri) } }
-    DisposableEffect(uri) { onDispose { pages.getOrNull()?.close() } }
-    val name = remember(uri) { PdfEdit.displayName(ctx, uri) }
-    val marks = remember(uri) { mutableStateMapOf<Int, SnapshotStateList<PdfMark>>() }
-    var editing by remember { mutableStateOf<Int?>(null) }
-    var busy by remember { mutableStateOf<String?>(null) }
-    var leaving by remember { mutableStateOf(false) }
-    val hasMarks = marks.values.any { it.isNotEmpty() }
-
-    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
-        if (out == null) return@rememberLauncherForActivityResult
-        val snapshot = marks.mapValues { it.value.toList() }
-        scope.launch {
-            busy = "Saving your annotations…"
-            val ok = runCatching { PdfEdit.annotate(ctx, uri, out, snapshot) }
-            busy = null
-            Toast.makeText(ctx, if (ok.isSuccess) "Saved a copy with your annotations." else "⚠️ Couldn't save: ${ok.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-            // Show the saved copy, so the marks stay on screen and further notes build on it.
-            if (ok.isSuccess) onSaved(out)
-        }
-    }
-
-    editing?.let { index ->
-        val doc = pages.getOrNull() ?: return
-        PageEditor(doc, index, marks.getOrPut(index) { mutableStateListOf() }, onDone = { editing = null })
-        return
-    }
-
-    BackHandler { if (hasMarks) leaving = true else onClose() }
-    Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
-        ScreenTopBar(name, onBack = { if (hasMarks) leaving = true else onClose() }, subtitle = pages.getOrNull()?.let { "${it.count} pages" })
-        val doc = pages.getOrElse { e ->
-            Text(
-                if (e is SecurityException) "This PDF is password-protected. Open it in an app that can unlock it first."
-                else "Couldn't open this PDF: ${e.message}",
-                color = TextPrimary, fontSize = 16.sp, modifier = Modifier.padding(24.dp),
-            )
-            return@Column
-        }
-        var scale by remember { mutableStateOf(1f) }
-        var panX by remember { mutableStateOf(0f) }
-        val list = rememberLazyListState()
-        BoxWithConstraints(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(0.dp))
-                // Two fingers zoom and pan sideways; one finger scrolls the pages as usual.
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        do {
-                            val event = awaitPointerEvent()
-                            if (event.changes.size >= 2) {
-                                scale = (scale * event.calculateZoom()).coerceIn(1f, 4f)
-                                val limit = size.width * (scale - 1) / 2
-                                panX = (panX + event.calculatePan().x).coerceIn(-limit, limit)
-                                event.changes.forEach { it.consume() }
-                            }
-                        } while (event.changes.any { it.pressed })
-                        if (scale <= 1.01f) { scale = 1f; panX = 0f }
-                    }
-                },
-        ) {
-            val widthPx = with(LocalDensity.current) { (maxWidth - 24.dp).toPx() }.toInt()
-            LazyColumn(
-                state = list,
-                modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; translationX = panX },
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-            ) {
-                itemsIndexed(doc.ratios) { i, ratio ->
-                    PageView(doc, i, ratio, (widthPx * 1.5f).toInt(), marks[i].orEmpty())
-                }
-            }
-            Text(
-                "${list.firstVisibleItemIndex + 1} / ${doc.count}",
-                color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)
-                    .clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 12.dp, vertical = 5.dp),
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth().background(CardHi).navigationBarsPadding().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            PillButton("✏  Annotate page", Charcoal, Color.White, Modifier.weight(1.3f)) { editing = list.firstVisibleItemIndex }
-            if (hasMarks) PillButton("Save copy", Coral, Color.White, Modifier.weight(1f)) { save.launch(name.removeSuffix(".pdf") + " (annotated).pdf") }
-            else PillButton("Share", Card, TextPrimary, Modifier.weight(1f)) { share(ctx, uri) }
-        }
-    }
-    busy?.let { BusyDialog(it) }
-    if (leaving) {
-        AlertDialog(
-            onDismissRequest = { leaving = false },
-            title = { Text("Leave without saving?") },
-            text = { Text("Your drawings and notes are not saved yet. Tap \"Save copy\" to keep them.") },
-            confirmButton = { TextButton(onClick = { leaving = false; onClose() }) { Text("Discard") } },
-            dismissButton = { TextButton(onClick = { leaving = false }) { Text("Keep editing") } },
-        )
-    }
-}
-
-private fun share(ctx: android.content.Context, uri: Uri) {
-    val shareUri = if (uri.scheme == "file") {
-        androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", java.io.File(uri.path!!))
-    } else uri
-    val send = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, shareUri)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    send.clipData = ClipData.newRawUri("", shareUri)
-    runCatching { ctx.startActivity(Intent.createChooser(send, "Share PDF")) }
-}
-
-@Composable
-private fun PageView(doc: PdfPages, index: Int, ratio: Float, widthPx: Int, marks: List<PdfMark>) {
-    var bmp by remember(doc, index) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(doc, index, widthPx) { bmp = runCatching { doc.render(index, widthPx) }.getOrNull() }
-    Box(
-        Modifier.fillMaxWidth().aspectRatio(ratio).clip(RoundedCornerShape(6.dp)).background(Color.White).border(1.dp, Line, RoundedCornerShape(6.dp)),
-    ) {
-        bmp?.let { Image(it.asImageBitmap(), contentDescription = "Page ${index + 1}", modifier = Modifier.fillMaxSize()) }
-            ?: CircularProgressIndicator(Modifier.align(Alignment.Center).size(28.dp), color = Coral, strokeWidth = 2.dp)
-        if (marks.isNotEmpty()) Canvas(Modifier.fillMaxSize()) { drawMarks(marks) }
-    }
-}
-
-private fun DrawScope.drawMarks(marks: List<PdfMark>, live: List<Offset> = emptyList(), livePen: PdfMark.Ink? = null) {
-    fun ink(points: List<Pair<Float, Float>>, color: Int, width: Float, alpha: Float) {
-        if (points.isEmpty()) return
-        val path = Path().apply {
-            moveTo(points[0].first * size.width, points[0].second * size.height)
-            if (points.size == 1) lineTo(points[0].first * size.width + 0.5f, points[0].second * size.height)
-            points.drop(1).forEach { lineTo(it.first * size.width, it.second * size.height) }
-        }
-        drawPath(path, Color(color).copy(alpha = alpha), style = Stroke(width * size.width, cap = StrokeCap.Round, join = StrokeJoin.Round))
-    }
-    marks.forEach { m ->
-        when (m) {
-            is PdfMark.Ink -> ink(m.points, m.color, m.width, m.alpha)
-            is PdfMark.Note -> drawContext.canvas.nativeCanvas.drawText(
-                m.text, m.x * size.width, m.y * size.height + m.size * size.width * 0.8f,
-                android.graphics.Paint().apply { color = m.color; textSize = m.size * size.width; isAntiAlias = true; typeface = android.graphics.Typeface.SANS_SERIF },
-            )
-        }
-    }
-    if (livePen != null && live.isNotEmpty()) ink(live.map { it.x / size.width to it.y / size.height }, livePen.color, livePen.width, livePen.alpha)
-}
-
-/** One page, full screen: draw with a pen, highlight, or tap to place text. */
-@Composable
-private fun PageEditor(doc: PdfPages, index: Int, marks: SnapshotStateList<PdfMark>, onDone: () -> Unit) {
-    var pen by remember { mutableStateOf(Pen.PEN) }
-    var color by remember { mutableStateOf(InkColors[1]) }
-    val live = remember { mutableStateListOf<Offset>() }
-    var noteAt by remember { mutableStateOf<Offset?>(null) }
-    var noteText by remember { mutableStateOf("") }
-    var bmp by remember { mutableStateOf<Bitmap?>(null) }
-    BackHandler(onBack = onDone)
-
-    Column(Modifier.fillMaxSize().background(Color(0xFF2A2F2C)).systemBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Page ${index + 1}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            PillButton("Undo", Color.White.copy(alpha = 0.15f), Color.White, enabled = marks.isNotEmpty()) { marks.removeAt(marks.lastIndex) }
-            Spacer(Modifier.width(8.dp))
-            PillButton("Done", Coral, Color.White) { onDone() }
-        }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-            val ratio = doc.ratios[index]
-            val widthPx = with(LocalDensity.current) { maxWidth.toPx() }.toInt()
-            LaunchedEffect(index) { bmp = runCatching { doc.render(index, (widthPx * 1.5f).toInt()) }.getOrNull() }
-            val fitWidth = maxWidth / maxHeight < ratio
-            Box(
-                (if (fitWidth) Modifier.fillMaxWidth() else Modifier.height(maxHeight)).aspectRatio(ratio).background(Color.White),
-            ) {
-                bmp?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize()) }
-                val ink = when (pen) {
-                    Pen.HIGHLIGHT -> PdfMark.Ink(emptyList(), HighlightColor.toArgb(), 0.028f, 0.4f)
-                    else -> PdfMark.Ink(emptyList(), color.toArgb(), 0.005f, 1f)
-                }
-                Canvas(
-                    Modifier
-                        .fillMaxSize()
-                        .pointerInput(pen) {
-                            if (pen == Pen.TEXT) {
-                                detectTapGestures { p -> noteAt = Offset(p.x / size.width, p.y / size.height); noteText = "" }
-                            } else {
-                                detectDragGestures(
-                                    onDragStart = { live.clear(); live += it },
-                                    onDrag = { change, _ -> live += change.position },
-                                    onDragEnd = {
-                                        marks += ink.copy(points = live.map { (it.x / size.width).coerceIn(0f, 1f) to (it.y / size.height).coerceIn(0f, 1f) })
-                                        live.clear()
-                                    },
-                                    onDragCancel = { live.clear() },
-                                )
-                            }
-                        },
-                ) { drawMarks(marks, live, ink) }
-            }
-        }
-        // Colours sit on their own row so all of them fit next to the three tools on narrow phones.
-        Column(
-            Modifier.fillMaxWidth().background(Color(0xFF1E2220)).navigationBarsPadding().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (pen != Pen.HIGHLIGHT) Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                InkColors.forEach { c ->
-                    Box(
-                        Modifier.size(30.dp).clip(CircleShape).background(c)
-                            .border(if (c == color) 3.dp else 1.dp, if (c == color) Color.White else Color.White.copy(alpha = 0.3f), CircleShape)
-                            .clickable { color = c },
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(Pen.PEN to "Pen", Pen.HIGHLIGHT to "Highlight", Pen.TEXT to "Text").forEach { (p, label) ->
-                    PillButton(label, if (pen == p) Coral else Color.White.copy(alpha = 0.12f), Color.White, Modifier.weight(1f)) { pen = p }
-                }
-            }
-        }
-    }
-
-    noteAt?.let { at ->
-        AlertDialog(
-            onDismissRequest = { noteAt = null },
-            title = { Text("Add text") },
-            text = { OutlinedTextField(noteText, { noteText = it }, singleLine = true, label = { Text("Text") }) },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (noteText.isNotBlank()) marks += PdfMark.Note(at.x, at.y, noteText.trim(), color.toArgb(), 0.03f)
-                    noteAt = null
-                }) { Text("Add") }
-            },
-            dismissButton = { TextButton(onClick = { noteAt = null }) { Text("Cancel") } },
-        )
-    }
-}
 
 // ---------------------------------------------------------------- shared bits for the document tools
 

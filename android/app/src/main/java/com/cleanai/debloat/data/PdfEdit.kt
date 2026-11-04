@@ -24,13 +24,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** A pen stroke or a typed note on a page, in 0..1 page coordinates (x right, y down, as shown on screen). */
-sealed interface PdfMark {
-    data class Ink(val points: List<Pair<Float, Float>>, val color: Int, val width: Float, val alpha: Float) : PdfMark
-    data class Note(val x: Float, val y: Float, val text: String, val color: Int, val size: Float) : PdfMark
-}
-
-/** PDF tools that run fully on the phone: merge, keep/remove pages, compress pictures, and burn in annotations. */
+/** PDF tools that run fully on the phone: merge, keep/remove pages and compress pictures (editing is in PdfDoc). */
 object PdfEdit {
     private var ready = false
 
@@ -112,67 +106,6 @@ object PdfEdit {
         }
         sizeOf(ctx, src) to sizeOf(ctx, out)
     }
-
-    /** Writes [marks] (page index -> marks) onto a copy of the PDF, keeping the original text and pages. */
-    suspend fun annotate(ctx: Context, src: Uri, out: Uri, marks: Map<Int, List<PdfMark>>) = withContext(Dispatchers.IO) {
-        load(ctx, src).use { doc ->
-            marks.forEach { (index, list) ->
-                if (list.isEmpty() || index >= doc.numberOfPages) return@forEach
-                val page = doc.getPage(index)
-                val box = page.cropBox
-                val rot = ((page.rotation % 360) + 360) % 360
-                // Screen (u right, v down, 0..1) -> PDF points, honouring the page's /Rotate.
-                fun map(u: Float, v: Float): Pair<Float, Float> = when (rot) {
-                    90 -> box.lowerLeftX + v * box.width to box.lowerLeftY + u * box.height
-                    180 -> box.lowerLeftX + (1 - u) * box.width to box.lowerLeftY + v * box.height
-                    270 -> box.lowerLeftX + (1 - v) * box.width to box.lowerLeftY + (1 - u) * box.height
-                    else -> box.lowerLeftX + u * box.width to box.lowerLeftY + (1 - v) * box.height
-                }
-                val shownWidth = if (rot == 90 || rot == 270) box.height else box.width
-                PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
-                    list.forEach { m ->
-                        when (m) {
-                            is PdfMark.Ink -> {
-                                if (m.points.isEmpty()) return@forEach
-                                cs.saveGraphicsState()
-                                cs.setGraphicsStateParameters(PDExtendedGraphicsState().apply { strokingAlphaConstant = m.alpha })
-                                cs.setStrokingColor(color(m.color))
-                                cs.setLineWidth(m.width * shownWidth)
-                                cs.setLineCapStyle(1)
-                                cs.setLineJoinStyle(1)
-                                val (x0, y0) = map(m.points[0].first, m.points[0].second)
-                                cs.moveTo(x0, y0)
-                                // A single tap still leaves a dot.
-                                if (m.points.size == 1) cs.lineTo(x0 + 0.1f, y0)
-                                m.points.drop(1).forEach { (u, v) -> val (x, y) = map(u, v); cs.lineTo(x, y) }
-                                cs.stroke()
-                                cs.restoreGraphicsState()
-                            }
-                            is PdfMark.Note -> {
-                                val font = PDType1Font.HELVETICA
-                                val size = m.size * shownWidth
-                                val (x, y) = map(m.x, m.y)
-                                cs.beginText()
-                                cs.setFont(font, size)
-                                cs.setNonStrokingColor(color(m.color))
-                                cs.newLineAtOffset(x, y - size)
-                                // The built-in font covers Latin text; anything else is replaced with "?".
-                                val safe = m.text.map { c -> if (runCatching { font.encode(c.toString()) }.isSuccess) c else '?' }.joinToString("")
-                                cs.showText(safe)
-                                cs.endText()
-                            }
-                        }
-                    }
-                }
-            }
-            save(ctx, doc, out)
-        }
-    }
-
-    private fun color(argb: Int) = PDColor(
-        floatArrayOf(((argb shr 16) and 0xFF) / 255f, ((argb shr 8) and 0xFF) / 255f, (argb and 0xFF) / 255f),
-        PDDeviceRGB.INSTANCE,
-    )
 
     /** "1-3, 5, 8-" -> [0, 1, 2, 4, 7, 8, …] (0-based), or null if it doesn't make sense for [count] pages. */
     fun parsePages(text: String, count: Int): List<Int>? {
