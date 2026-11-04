@@ -424,8 +424,23 @@ object PdfDoc {
     /** Pictures, signatures and the save-in-progress file live here. */
     fun workDir(ctx: Context) = File(ctx.cacheDir, "pdf_edit").apply { mkdirs() }
 
-    /** The signature the user drew last, kept privately so it can be reused. */
-    fun savedSignature(ctx: Context) = File(ctx.filesDir, "signature.png")
+    private const val MAX_SIGNATURES = 6
+
+    private fun signatureDir(ctx: Context) = File(ctx.filesDir, "signatures").apply { mkdirs() }
+
+    /** Signatures the user chose to keep, newest first, stored privately on this phone. */
+    fun savedSignatures(ctx: Context): List<File> {
+        val dir = signatureDir(ctx)
+        // Earlier versions kept a single signature here; it joins the list.
+        File(ctx.filesDir, "signature.png").takeIf { it.exists() }?.let { old -> old.renameTo(File(dir, "sig_${old.lastModified()}.png")) }
+        return dir.listFiles { f -> f.name.endsWith(".png") }.orEmpty().sortedByDescending { it.lastModified() }
+    }
+
+    /** Keeps a copy of [file] for next time; only the newest [MAX_SIGNATURES] are kept. */
+    fun keepSignature(ctx: Context, file: File) {
+        file.copyTo(File(signatureDir(ctx), "sig_${System.currentTimeMillis()}.png"), overwrite = true)
+        savedSignatures(ctx).drop(MAX_SIGNATURES).forEach { it.delete() }
+    }
 
     /**
      * Writes the edited document to [out]. The source is read fully first, so [out] may be the same file.

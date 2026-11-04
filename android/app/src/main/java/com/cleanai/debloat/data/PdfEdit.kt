@@ -11,6 +11,10 @@ import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
+import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
+import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
+import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import com.tom_roush.pdfbox.pdmodel.graphics.color.PDColor
 import com.tom_roush.pdfbox.pdmodel.graphics.color.PDDeviceRGB
@@ -24,7 +28,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** PDF tools that run fully on the phone: merge, keep/remove pages and compress pictures (editing is in PdfDoc). */
+/** PDF tools that run fully on the phone: merge, keep/remove pages, compress, watermark and passwords (editing is in PdfDoc). */
 object PdfEdit {
     private var ready = false
 
@@ -105,6 +109,83 @@ object PdfEdit {
             save(ctx, doc, out)
         }
         sizeOf(ctx, src) to sizeOf(ctx, out)
+    }
+
+    /** Writes [text] faintly and diagonally across every page, in [color] at [opacity] (0..1). */
+    suspend fun watermark(ctx: Context, src: Uri, out: Uri, text: String, color: Int, opacity: Float) = withContext(Dispatchers.IO) {
+        load(ctx, src).use { doc ->
+            val font = fontFor(doc, text)
+            val gs = PDExtendedGraphicsState().apply { nonStrokingAlphaConstant = opacity }
+            val rgb = floatArrayOf(android.graphics.Color.red(color) / 255f, android.graphics.Color.green(color) / 255f, android.graphics.Color.blue(color) / 255f)
+            val textWidth = font.getStringWidth(text) / 1000f
+            for (page in doc.pages) {
+                val box = page.cropBox
+                val (w, h) = box.width to box.height
+                // Corner to corner as the page is shown, even when the page is stored turned.
+                val turned = page.rotation % 180 != 0
+                val angle = Math.atan2((if (turned) w else h).toDouble(), (if (turned) h else w).toDouble())
+                val diagonal = Math.hypot(w.toDouble(), h.toDouble()).toFloat()
+                val size = minOf(diagonal * 0.7f / textWidth.coerceAtLeast(0.01f), minOf(w, h) * 0.3f)
+                val capHeight = size * 0.7f
+                PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+                    cs.setGraphicsStateParameters(gs)
+                    cs.setNonStrokingColor(PDColor(rgb, PDDeviceRGB.INSTANCE))
+                    cs.beginText()
+                    cs.setFont(font, size)
+                    val m = com.tom_roush.pdfbox.util.Matrix.getRotateInstance(angle, box.lowerLeftX + w / 2, box.lowerLeftY + h / 2)
+                    m.translate(-textWidth * size / 2, -capHeight / 2)
+                    cs.setTextMatrix(m)
+                    cs.showText(text)
+                    cs.endText()
+                }
+            }
+            save(ctx, doc, out)
+        }
+    }
+
+    /** Helvetica when the text fits it (nothing embedded), otherwise the phone's own font so any language works. */
+    private fun fontFor(doc: PDDocument, text: String): com.tom_roush.pdfbox.pdmodel.font.PDFont {
+        if (runCatching { PDType1Font.HELVETICA_BOLD.encode(text) }.isSuccess) return PDType1Font.HELVETICA_BOLD
+        return listOf("RobotoStatic-Bold.ttf", "Roboto-Bold.ttf", "NotoSans-Bold.ttf", "DroidSans-Bold.ttf")
+            .map { java.io.File("/system/fonts", it) }.firstOrNull { it.exists() }
+            ?.let { f -> runCatching { PDType0Font.load(doc, f) }.getOrNull() }
+            ?: error("This phone has no font for that text")
+    }
+
+    /**
+     * Saves a copy that asks for [password] before it opens (AES-256). Anyone with the password can open,
+     * print and copy from it as normal.
+     */
+    suspend fun lock(ctx: Context, src: Uri, out: Uri, password: String) = withContext(Dispatchers.IO) {
+        load(ctx, src).use { doc ->
+            if (doc.isEncrypted) error("This PDF already has a password")
+            val policy = StandardProtectionPolicy(password, password, AccessPermission()).apply { encryptionKeyLength = 256 }
+            doc.protect(policy)
+            save(ctx, doc, out)
+        }
+    }
+
+    /** True when the PDF asks for a password before it opens. */
+    fun needsPassword(ctx: Context, uri: Uri): Boolean = runCatching {
+        init(ctx)
+        ctx.contentResolver.openInputStream(uri)?.use { PDDocument.load(it, MemoryUsageSetting.setupTempFileOnly()).close() }
+        false
+    }.getOrElse { it is InvalidPasswordException }
+
+    /** True when [password] opens this PDF. */
+    fun passwordOpens(ctx: Context, uri: Uri, password: String): Boolean = runCatching {
+        init(ctx)
+        ctx.contentResolver.openInputStream(uri)?.use { PDDocument.load(it, password, MemoryUsageSetting.setupTempFileOnly()).close() } != null
+    }.getOrDefault(false)
+
+    /** Saves a copy of a password-protected PDF that opens without one. Fails with [InvalidPasswordException] for a wrong password. */
+    suspend fun unlock(ctx: Context, src: Uri, out: Uri, password: String) = withContext(Dispatchers.IO) {
+        init(ctx)
+        val input = ctx.contentResolver.openInputStream(src) ?: error("Couldn't open the PDF")
+        input.use { PDDocument.load(it, password, MemoryUsageSetting.setupTempFileOnly()) }.use { doc ->
+            doc.isAllSecurityToBeRemoved = true
+            save(ctx, doc, out)
+        }
     }
 
     /** "1-3, 5, 8-" -> [0, 1, 2, 4, 7, 8, …] (0-based), or null if it doesn't make sense for [count] pages. */

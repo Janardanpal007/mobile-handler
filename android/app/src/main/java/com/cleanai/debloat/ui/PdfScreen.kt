@@ -83,13 +83,22 @@ import com.cleanai.debloat.data.MyFiles
 import com.cleanai.debloat.data.PdfEdit
 import com.cleanai.debloat.data.PdfPages
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 
 private enum class PdfTool(val title: String, val blurb: String) {
     MERGE("Merge PDFs", "Join several PDFs into one"),
     EXTRACT("Extract pages", "Split out the pages you need"),
     REMOVE("Remove pages", "Delete pages you don't want"),
     COMPRESS("Compress", "Make a PDF smaller to share"),
+    WATERMARK("Watermark", "Write text like DRAFT across every page"),
+    PASSWORD("Password", "Lock a PDF, or remove its password"),
 }
+
+private val WatermarkColors = listOf(0xFF7A7A7A.toInt(), 0xFFD32F2F.toInt(), 0xFF1F4FB8.toInt(), 0xFF2E7D32.toInt())
 
 /** PDF Reader & Editor: read with pinch-zoom, draw / highlight / add text, merge, split, remove pages and compress. */
 @Composable
@@ -103,6 +112,12 @@ fun PdfScreen(onBack: () -> Unit) {
     var asking by remember { mutableStateOf(false) }
     var pagesText by remember { mutableStateOf("") }
     var quality by remember { mutableStateOf(0.6f) }
+    var mark by remember { mutableStateOf("CONFIDENTIAL") }
+    var markColor by remember { mutableStateOf(WatermarkColors[0]) }
+    var markStrength by remember { mutableStateOf(0.25f) }
+    var password by remember { mutableStateOf("") }
+    var password2 by remember { mutableStateOf("") }
+    var wrongPassword by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf<Pair<String, Uri>?>(null) }
     // Runs once the user has picked where to save the result.
@@ -121,7 +136,7 @@ fun PdfScreen(onBack: () -> Unit) {
     }
     val pickOne = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        if (tool == null) open = uri else { source = uri; pagesText = ""; asking = true }
+        if (tool == null) open = uri else { source = uri; pagesText = ""; password = ""; password2 = ""; wrongPassword = false; asking = true }
     }
     val pickMany = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) { merging.addAll(uris); tool = PdfTool.MERGE }
@@ -144,7 +159,7 @@ fun PdfScreen(onBack: () -> Unit) {
         when (tool) {
             null -> open = uri
             PdfTool.MERGE -> merging += uri
-            else -> { source = uri; pagesText = ""; asking = true }
+            else -> { source = uri; pagesText = ""; password = ""; password2 = ""; wrongPassword = false; asking = true }
         }
     }
 
@@ -226,14 +241,55 @@ fun PdfScreen(onBack: () -> Unit) {
         val t = tool!!
         val count = remember(src) { PdfEdit.pageCount(ctx, src) }
         val name = remember(src) { PdfEdit.displayName(ctx, src).removeSuffix(".pdf") }
+        val locked = remember(src) { t == PdfTool.PASSWORD && PdfEdit.needsPassword(ctx, src) }
         AlertDialog(
             onDismissRequest = { asking = false; tool = null },
-            title = { Text(t.title) },
+            title = { Text(if (t == PdfTool.PASSWORD) (if (locked) "Remove password" else "Add a password") else t.title) },
             text = {
                 Column {
-                    Text("$name · $count page${if (count == 1) "" else "s"}", color = TextSecondary, fontSize = 14.sp)
+                    Text(if (locked) "$name · password-protected" else "$name · $count page${if (count == 1) "" else "s"}", color = TextSecondary, fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
-                    if (t == PdfTool.COMPRESS) {
+                    if (t == PdfTool.WATERMARK) {
+                        OutlinedTextField(mark, { mark = it.take(40) }, label = { Text("Watermark text") }, singleLine = true)
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WatermarkColors.forEach { c ->
+                                Box(
+                                    Modifier.size(30.dp).clip(CircleShape).background(Color(c))
+                                        .border(if (c == markColor) 3.dp else 0.dp, Coral, CircleShape).clickable { markColor = c },
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(if (markStrength < 0.2f) "Faint" else if (markStrength < 0.4f) "Light" else "Strong", fontSize = 15.sp)
+                        Slider(markStrength, { markStrength = it }, valueRange = 0.1f..0.6f)
+                    } else if (t == PdfTool.PASSWORD) {
+                        OutlinedTextField(
+                            password, { password = it; wrongPassword = false },
+                            label = { Text(if (locked) "Current password" else "New password") },
+                            singleLine = true, isError = wrongPassword,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        )
+                        if (!locked) {
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                password2, { password2 = it },
+                                label = { Text("Type it again") }, singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            when {
+                                wrongPassword -> "That password isn't right."
+                                locked -> "You'll get a copy that opens without a password. The original stays locked."
+                                else -> "You'll get a locked copy. Keep the password safe: Mobile Handler doesn't store it, and without it the PDF can't be opened."
+                            },
+                            color = if (wrongPassword) Coral else TextSecondary, fontSize = 13.sp,
+                        )
+                    } else if (t == PdfTool.COMPRESS) {
                         Text(
                             when {
                                 quality < 0.45f -> "Smallest file (pictures look rougher)"
@@ -255,6 +311,38 @@ fun PdfScreen(onBack: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     when (t) {
+                        PdfTool.WATERMARK -> {
+                            val text = mark.trim()
+                            if (text.isEmpty()) {
+                                Toast.makeText(ctx, "Type the watermark text.", Toast.LENGTH_SHORT).show()
+                                return@TextButton
+                            }
+                            val (c, a) = markColor to markStrength
+                            job = { out -> PdfEdit.watermark(ctx, src, out, text, c, a); "Added “$text” to every page." }
+                            saveAs.launch("$name (watermarked).pdf")
+                        }
+                        PdfTool.PASSWORD -> {
+                            val pw = password
+                            if (locked) {
+                                if (pw.isEmpty()) return@TextButton
+                                // Check the password before asking where to save, so a wrong one doesn't leave an empty file.
+                                scope.launch {
+                                    val ok = withContext(Dispatchers.IO) { PdfEdit.passwordOpens(ctx, src, pw) }
+                                    if (!ok) { wrongPassword = true; return@launch }
+                                    job = { out -> PdfEdit.unlock(ctx, src, out, pw); "Saved a copy without the password." }
+                                    saveAs.launch("$name (unlocked).pdf")
+                                    asking = false
+                                    tool = null
+                                }
+                                return@TextButton
+                            }
+                            when {
+                                pw.length < 4 -> { Toast.makeText(ctx, "Use at least 4 characters.", Toast.LENGTH_SHORT).show(); return@TextButton }
+                                pw != password2 -> { Toast.makeText(ctx, "The two passwords don't match.", Toast.LENGTH_SHORT).show(); return@TextButton }
+                            }
+                            job = { out -> PdfEdit.lock(ctx, src, out, pw); "Locked. It will ask for the password when it opens." }
+                            saveAs.launch("$name (locked).pdf")
+                        }
                         PdfTool.COMPRESS -> {
                             val q = quality
                             job = { out ->

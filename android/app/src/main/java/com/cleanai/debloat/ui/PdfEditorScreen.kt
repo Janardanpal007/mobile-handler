@@ -211,6 +211,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     var textJob by remember { mutableStateOf<TextJob?>(null) }
     var lineJob by remember { mutableStateOf<LineJob?>(null) }
     var signing by remember { mutableStateOf(false) }
+    var stamping by remember { mutableStateOf(false) }
     var showPages by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -259,9 +260,9 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     }
 
     /** Puts a picture on the page the user is looking at, selected so it can be moved straight away. */
-    fun placePicture(file: String, aspect: Float, signature: Boolean) {
+    fun placePicture(file: String, aspect: Float, signature: Boolean, width: Float = if (signature) 0.35f else 0.5f) {
         val page = currentPage() ?: return
-        val w = if (signature) 0.35f else 0.5f
+        val w = width
         val h = min(w * page.shownW / page.shownH / aspect, 0.9f)
         // Centred where the user is looking on that page, kept inside the page.
         val cy = pageInView().second.coerceIn(h / 2, 1f - h / 2)
@@ -493,6 +494,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
                     }
                 }
                 ToolButton("✍", "Sign", on = false) { signing = true }
+                ToolButton("▣", "Stamp", on = false) { stamping = true }
                 ToolButton("🖼", "Image", on = false) { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                 ToolButton("▤", "Pages", on = false) { showPages = true }
             }
@@ -571,6 +573,13 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
         SignatureDialog(onDismiss = { signing = false }) { file, aspect ->
             signing = false
             placePicture(file, aspect, signature = true)
+        }
+    }
+
+    if (stamping) {
+        StampDialog(onDismiss = { stamping = false }) { file, aspect ->
+            stamping = false
+            placePicture(file, aspect, signature = false, width = 0.4f)
         }
     }
 
@@ -1030,7 +1039,15 @@ private fun SignatureDialog(onDismiss: () -> Unit, onDone: (String, Float) -> Un
     var live by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var ink by remember { mutableIntStateOf(0xFF1E1E1E.toInt()) }
     var padSize by remember { mutableStateOf(IntSize.Zero) }
-    val saved = remember { PdfDoc.savedSignature(ctx).takeIf { it.exists() } }
+    val saved = remember { mutableStateListOf<File>().apply { addAll(PdfDoc.savedSignatures(ctx)) } }
+    val thumbs = remember { mutableStateMapOf<String, ImageBitmap>() }
+    LaunchedEffect(Unit) {
+        saved.toList().forEach { f ->
+            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f.path) }?.let { thumbs[f.path] = it.asImageBitmap() }
+        }
+    }
+    var keep by remember { mutableStateOf(true) }
+    var forget by remember { mutableStateOf<File?>(null) }
 
     fun finish(bmpFile: File) {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -1038,11 +1055,36 @@ private fun SignatureDialog(onDismiss: () -> Unit, onDone: (String, Float) -> Un
         onDone(bmpFile.path, opts.outWidth.toFloat() / opts.outHeight.coerceAtLeast(1))
     }
 
+    // A placed signature uses its own copy, so deleting a saved one later can't break an open edit.
+    fun useSaved(f: File) {
+        val copy = File(PdfDoc.workDir(ctx), "sig_${newId()}.png")
+        if (runCatching { f.copyTo(copy, overwrite = true) }.isSuccess) finish(copy)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Your signature") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (saved.isNotEmpty()) {
+                    Text("Tap a saved signature to use it", color = TextSecondary, fontSize = 13.sp)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        saved.forEach { f ->
+                            Box(
+                                Modifier.size(width = 112.dp, height = 60.dp).clip(RoundedCornerShape(10.dp)).background(Color.White)
+                                    .border(1.dp, Line, RoundedCornerShape(10.dp)).clickable { useSaved(f) },
+                            ) {
+                                thumbs[f.path]?.let { Image(it, contentDescription = "Saved signature", modifier = Modifier.fillMaxSize().padding(6.dp)) }
+                                Box(
+                                    Modifier.align(Alignment.TopEnd).padding(2.dp).size(22.dp).clip(CircleShape).background(Color(0x22000000))
+                                        .clickable { forget = f },
+                                    contentAlignment = Alignment.Center,
+                                ) { Text("✕", color = Color(0xFF444444), fontSize = 11.sp) }
+                            }
+                        }
+                    }
+                    Text("Or draw a new one", color = TextSecondary, fontSize = 13.sp)
+                }
                 Box(
                     Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).border(1.dp, Line, RoundedCornerShape(12.dp))
                         .onSizeChanged { padSize = it }
@@ -1071,7 +1113,7 @@ private fun SignatureDialog(onDismiss: () -> Unit, onDone: (String, Float) -> Un
                     Swatch(0xFF1E1E1E.toInt(), ink == 0xFF1E1E1E.toInt()) { ink = 0xFF1E1E1E.toInt() }
                     Swatch(0xFF1F4FB8.toInt(), ink == 0xFF1F4FB8.toInt()) { ink = 0xFF1F4FB8.toInt() }
                     Chip("Clear") { strokes.clear() }
-                    if (saved != null) Chip("Use saved") { finish(saved) }
+                    Chip(if (keep) "✓ Keep for later" else "Keep for later", on = keep) { keep = !keep }
                 }
             }
         },
@@ -1093,9 +1135,93 @@ private fun SignatureDialog(onDismiss: () -> Unit, onDone: (String, Float) -> Un
                 }
                 val file = File(PdfDoc.workDir(ctx), "sig_${newId()}.png")
                 FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                // Keep it (privately, on this phone) for next time.
-                runCatching { file.copyTo(PdfDoc.savedSignature(ctx), overwrite = true) }
+                // Kept privately on this phone, only when the user wants it.
+                if (keep) runCatching { PdfDoc.keepSignature(ctx, file) }
                 finish(file)
+            }) { Text("Place it") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+    forget?.let { f ->
+        AlertDialog(
+            onDismissRequest = { forget = null },
+            title = { Text("Delete this saved signature?") },
+            text = { Text("It's removed from this phone. Signatures already placed in PDFs stay.") },
+            confirmButton = { TextButton(onClick = { f.delete(); saved.remove(f); forget = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { forget = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+// -------------------------------------------------------------------------------------------- stamp
+
+private enum class StampColor(val argb: Int) { RED(0xFFC62828.toInt()), GREEN(0xFF2E7D32.toInt()), BLUE(0xFF1F4FB8.toInt()) }
+
+private val StampPresets = listOf(
+    "APPROVED" to StampColor.GREEN, "PAID" to StampColor.GREEN, "RECEIVED" to StampColor.GREEN,
+    "DRAFT" to StampColor.BLUE, "COPY" to StampColor.BLUE,
+    "CONFIDENTIAL" to StampColor.RED, "REJECTED" to StampColor.RED, "VOID" to StampColor.RED,
+)
+
+/** A rubber-stamp look: bold capitals in a rounded frame, with an optional date line, on a clear background. */
+private fun renderStamp(text: String, color: Int, date: String?): Bitmap {
+    val big = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color; textSize = 96f; typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        letterSpacing = 0.06f
+    }
+    val small = android.graphics.Paint(big).apply { textSize = 44f; letterSpacing = 0.02f }
+    val pad = 36f
+    val stroke = 9f
+    val bigW = big.measureText(text)
+    val smallW = date?.let { small.measureText(it) } ?: 0f
+    val w = maxOf(bigW, smallW) + pad * 2
+    val h = pad * 2 + 72f + (if (date != null) 64f else 0f)
+    val bmp = Bitmap.createBitmap(w.toInt(), h.toInt(), Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bmp)
+    val frame = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color; style = android.graphics.Paint.Style.STROKE; strokeWidth = stroke
+    }
+    canvas.drawRoundRect(stroke, stroke, w - stroke, h - stroke, 22f, 22f, frame)
+    canvas.drawText(text, (w - bigW) / 2, pad + 72f, big)
+    date?.let { canvas.drawText(it, (w - smallW) / 2, pad + 72f + 56f, small) }
+    return bmp
+}
+
+@Composable
+private fun StampDialog(onDismiss: () -> Unit, onDone: (String, Float) -> Unit) {
+    val ctx = LocalContext.current
+    var text by remember { mutableStateOf(StampPresets[0].first) }
+    var color by remember { mutableStateOf(StampPresets[0].second) }
+    var dated by remember { mutableStateOf(true) }
+    val today = remember { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date()) }
+    val label = text.trim().uppercase()
+    val preview = remember(label, color, dated) { label.takeIf { it.isNotEmpty() }?.let { renderStamp(it, color.argb, today.takeIf { dated }).asImageBitmap() } }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add a stamp") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp),
+                    contentAlignment = Alignment.Center,
+                ) { preview?.let { Image(it, contentDescription = "Stamp preview") } }
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StampPresets.forEach { (word, c) -> Chip(word, on = label == word) { text = word; color = c } }
+                }
+                OutlinedTextField(text, { text = it.take(24) }, singleLine = true, label = { Text("Or type your own") }, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StampColor.entries.forEach { c -> Swatch(c.argb, c == color) { color = c } }
+                    Chip(if (dated) "✓ Today's date" else "Today's date", on = dated) { dated = !dated }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = label.isNotEmpty(), onClick = {
+                val bmp = renderStamp(label, color.argb, today.takeIf { dated })
+                val file = File(PdfDoc.workDir(ctx), "stamp_${newId()}.png")
+                FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                onDone(file.path, bmp.width.toFloat() / bmp.height)
             }) { Text("Place it") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
