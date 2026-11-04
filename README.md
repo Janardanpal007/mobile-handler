@@ -28,10 +28,10 @@
 | 02 | **Ad Blocker** | Blocks ads in every app and browser with Android's Private DNS (AdGuard or Mullvad). No VPN slot used. Also finds trackers hidden inside your apps. |
 | 03 | **Photo Enhancer** | Makes photos HD (4× resolution), restores old pictures and colorizes black & white ones, on the phone, with open-source AI. |
 | 04 | **Scan Document & Scan QR** | Turns paper into clean PDFs and reads any QR code (links, Wi-Fi, text). **Photos → PDF** combines images into one PDF. |
-| 05 | **Office tools** | **PDF Reader** (read, draw, highlight, add notes, merge, split, compress), **Word** (.docx) and **Excel** (.xlsx and CSV with formulas). |
+| 05 | **Office tools** | **PDF Editor** (edit existing text, sign, add pictures, text, shapes and highlights, rotate/reorder pages, merge, split, compress), **Word** (.docx) and **Excel** (.xlsx and CSV with formulas). |
 | 06 | **Assistant** | Type what you need ("scan a document", "merge PDFs", "loan EMI") and it opens the right tool. |
 
-Also included: an iPhone-style **Calculator** with scientific and finance modes (EMI, SIP, GST), currency converter and a floating calculator, **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
+Also included: an iPhone-style **Calculator** with scientific and finance modes (EMI, SIP, GST), currency converter and a floating calculator, **Notes** (checklists, tags, pins and fingerprint-locked notes), **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
 
 ## Screenshots
 

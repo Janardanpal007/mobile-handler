@@ -12,8 +12,8 @@ android {
         applicationId = "com.cleanai.debloat"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.7"
+        versionCode = 10
+        versionName = "1.8"
         // Phones only: leaves out the x86 emulator copies of the photo AI's native libraries.
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
