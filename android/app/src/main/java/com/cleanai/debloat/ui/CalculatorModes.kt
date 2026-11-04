@@ -138,9 +138,18 @@ internal class SciCalc {
             ans = v
             lastExpr = expr
             result = formatNumber(BigDecimal(v))
+            CalcHistory.add(expr, result!!)
         } catch (e: Exception) {
             error = (e as? Formula.Error)?.code?.let { if (it == "#DIV/0!") "Can't divide by zero" else "Error" } ?: "Error"
         }
+    }
+
+    /** Replaces the sum with an edited or past one and works it out. */
+    fun load(text: String) {
+        error = null
+        expr = text
+        result = null
+        equals()
     }
 
     /** Removes the last thing typed: a digit, or a whole "sin(" / "Ans". */
@@ -156,11 +165,23 @@ internal class SciCalc {
 
 @Composable
 internal fun ColumnScope.ScientificPad(calc: SciCalc) {
+    var history by remember { mutableStateOf(false) }
+    var edit by remember { mutableStateOf<String?>(null) }
+    if (history) HistoryDialog(onDismiss = { history = false }) { e -> history = false; edit = e.expr }
+    edit?.let { start ->
+        EditCalcDialog(start, calc.degrees, onDismiss = { edit = null }) { text, _ -> edit = null; calc.load(text) }
+    }
     Column(
         Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.End,
     ) {
+        CalcTools(
+            editEnabled = calc.expr.isNotEmpty() || calc.result != null,
+            onHistory = { history = true },
+            onEdit = { edit = if (calc.result != null) calc.lastExpr else calc.expr },
+        )
+        Spacer(Modifier.weight(1f))
         Text(
             if (calc.degrees) "DEG" else "RAD",
             color = KeyOp,

@@ -4,10 +4,17 @@ import android.app.Activity
 import android.content.res.Configuration
 import com.cleanai.debloat.overlay.FloatingCalcService
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -117,6 +124,7 @@ fun CalculatorScreen(onBack: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(CalcMemory.requestedTab ?: 0) }
     LaunchedEffect(Unit) { CalcMemory.requestedTab = null }
     val ctx = LocalContext.current
+    remember { CalcHistory.init(ctx) }
     var askOverlay by remember { mutableStateOf(false) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     LightSystemBars()
@@ -334,6 +342,15 @@ internal class IosCalc {
         }
         typed = null
         selectedOp = null
+        if (!error) CalcHistory.add(expression, display)
+    }
+
+    /** Shows an edited or past calculation: [text] on the grey line and its answer, ready to carry on from. */
+    fun load(text: String, answer: BigDecimal) {
+        allClear()
+        current = answer
+        expression = text
+        CalcHistory.add(text, display)
     }
 
     private fun negate() {
@@ -454,6 +471,11 @@ private fun ColumnScope.MathPad() {
     val calc = CalcMemory.basic
     val haptics = LocalHapticFeedback.current
     val swipe = with(LocalDensity.current) { 36.dp.toPx() }
+    var history by remember { mutableStateOf(false) }
+    // Samsung-style editing: the sum on the display with a cursor, changed with the calculator's own keys.
+    var editing by remember { mutableStateOf<SumEditor?>(null) }
+    // The sum being typed, or the one just worked out, or the number on show.
+    fun editStart() = calc.expression.ifEmpty { calc.display.takeIf { it != "0" && it != "Error" }.orEmpty() }.replace(",", "")
 
     Column(
         Modifier
@@ -467,7 +489,7 @@ private fun ColumnScope.MathPad() {
                         dragged += dx
                         if (kotlin.math.abs(dragged) > swipe) {
                             dragged = 0f
-                            calc.backspace()
+                            editing?.backspace() ?: calc.backspace()
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                     },
@@ -477,21 +499,117 @@ private fun ColumnScope.MathPad() {
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.End,
     ) {
-        Text(
-            calc.expression,
-            color = KeyFn,
-            fontSize = 26.sp,
-            maxLines = 1,
-            textAlign = TextAlign.End,
-            softWrap = false,
+        val ed = editing
+        CalcTools(
+            editEnabled = ed != null || calc.expression.isNotEmpty() || calc.display != "0",
+            editLabel = if (ed != null) "✓  Done" else "✎  Edit",
+            onHistory = { history = true },
+            onEdit = { editing = if (ed != null) null else SumEditor(editStart()) },
         )
-        FitText(calc.display)
+        Spacer(Modifier.weight(1f))
+        if (ed != null) {
+            SumField(ed)
+            val answer = ed.answer()
+            Text(
+                answer?.let { "= " + formatNumber(it) } ?: " ",
+                color = KeyFn, fontSize = 34.sp, maxLines = 1, textAlign = TextAlign.End,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp),
+            )
+        } else {
+            // Tap the sum to put a cursor in it and change it.
+            Text(
+                calc.expression,
+                color = KeyFn,
+                fontSize = 26.sp,
+                maxLines = 1,
+                textAlign = TextAlign.End,
+                softWrap = false,
+                modifier = Modifier.clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
+            )
+            FitText(calc.display)
+        }
     }
+    if (history) HistoryDialog(onDismiss = { history = false }) { e -> history = false; editing = SumEditor(e.expr) }
     Keypad(
         CalcKeys,
-        label = { if (it == "AC") calc.clearLabel else it },
-        selected = { it.length == 1 && it[0] == calc.selectedOp },
-    ) { calc.press(it) }
+        label = {
+            when {
+                editing != null && it == "AC" -> "C"
+                editing != null && it == "±" -> "⌫"
+                it == "AC" -> calc.clearLabel
+                else -> it
+            }
+        },
+        selected = { editing == null && it.length == 1 && it[0] == calc.selectedOp },
+    ) { key ->
+        val ed = editing
+        if (ed == null) calc.press(key)
+        else when (key) {
+            // The keypad reports the label it shows.
+            "AC", "C" -> ed.clear()
+            "±", "⌫" -> ed.backspace()
+            "=" -> {
+                val answer = ed.answer()
+                if (answer != null) { calc.load(CalcHistory.tidy(ed.text), answer); editing = null }
+                else haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            else -> ed.insert(key)
+        }
+    }
+}
+
+/** A sum being edited: its text and where the cursor is. */
+internal class SumEditor(start: String) {
+    var text by mutableStateOf(start); private set
+    var cursor by mutableStateOf(start.length)
+
+    fun insert(s: String) {
+        text = text.substring(0, cursor) + s + text.substring(cursor)
+        cursor += s.length
+    }
+
+    fun backspace() {
+        if (cursor == 0) return
+        text = text.removeRange(cursor - 1, cursor)
+        cursor--
+    }
+
+    fun clear() { text = ""; cursor = 0 }
+
+    fun answer(): BigDecimal? = if (text.isBlank()) null else runCatching { CalcHistory.evaluate(text) }.getOrNull()
+}
+
+/** The sum in large type with a blinking cursor; tap anywhere in it to move the cursor there. */
+@Composable
+private fun SumField(ed: SumEditor) {
+    var layout by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val blink by rememberInfiniteTransition(label = "cursor").animateFloat(
+        initialValue = 1f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(530, easing = { t: Float -> if (t < 0.5f) 0f else 1f }), RepeatMode.Reverse),
+        label = "blink",
+    )
+    val shown = ed.text
+    Text(
+        shown.ifEmpty { " " },
+        color = Color.White,
+        fontSize = when { shown.length > 24 -> 30.sp; shown.length > 12 -> 40.sp; else -> 56.sp },
+        lineHeight = when { shown.length > 24 -> 36.sp; shown.length > 12 -> 48.sp; else -> 64.sp },
+        fontWeight = FontWeight.Light,
+        textAlign = TextAlign.End,
+        maxLines = 4,
+        onTextLayout = { layout = it },
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures { pos -> layout?.let { ed.cursor = it.getOffsetForPosition(pos).coerceIn(0, ed.text.length) } }
+            }
+            .drawWithContent {
+                drawContent()
+                val l = layout ?: return@drawWithContent
+                val r = l.getCursorRect(ed.cursor.coerceIn(0, l.layoutInput.text.length))
+                drawLine(KeyOp.copy(alpha = blink), Offset(r.left, r.top + 4f), Offset(r.left, r.bottom - 4f), 3.dp.toPx())
+            },
+    )
 }
 
 /** The big display number, shrinking to fit the width like the iPhone's. */

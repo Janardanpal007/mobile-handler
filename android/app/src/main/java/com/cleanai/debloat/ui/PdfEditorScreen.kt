@@ -53,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -228,7 +229,21 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
         push(s.withItems(page, f(s.itemsOn(page))))
     }
 
-    fun currentPage(): PageRef? = state?.pages?.getOrNull(list.firstVisibleItemIndex.coerceAtMost((state.pages.size - 1).coerceAtLeast(0)))
+    /**
+     * The page under the middle of the screen and how far down that page (0..1) the middle falls.
+     * The top-most visible page is often only a sliver, so it isn't the page being read.
+     */
+    fun pageInView(): Pair<Int, Float> {
+        val info = list.layoutInfo
+        val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2
+        val item = info.visibleItemsInfo.firstOrNull { mid >= it.offset && mid < it.offset + it.size }
+            ?: info.visibleItemsInfo.minByOrNull { abs(it.offset + it.size / 2 - mid) }
+            ?: return list.firstVisibleItemIndex to 0.5f
+        return item.index to ((mid - item.offset).toFloat() / item.size.coerceAtLeast(1)).coerceIn(0f, 1f)
+    }
+    val pageShown by remember { derivedStateOf { pageInView().first } }
+
+    fun currentPage(): PageRef? = state?.pages?.let { it.getOrNull(pageInView().first.coerceIn(0, (it.size - 1).coerceAtLeast(0))) }
 
     /** Fits a text box around its text, using the page's size on screen. */
     fun fitText(page: PageRef, item: TextBoxItem): TextBoxItem {
@@ -247,8 +262,10 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     fun placePicture(file: String, aspect: Float, signature: Boolean) {
         val page = currentPage() ?: return
         val w = if (signature) 0.35f else 0.5f
-        val h = w * page.shownW / page.shownH / aspect
-        val item = PictureItem(newId(), NRect(0.5f - w / 2, 0.5f - h / 2, 0.5f + w / 2, 0.5f + h / 2), file, signature)
+        val h = min(w * page.shownW / page.shownH / aspect, 0.9f)
+        // Centred where the user is looking on that page, kept inside the page.
+        val cy = pageInView().second.coerceIn(h / 2, 1f - h / 2)
+        val item = PictureItem(newId(), NRect(0.5f - w / 2, cy - h / 2, 0.5f + w / 2, cy + h / 2), file, signature)
         replaceItems(page) { it + item }
         tool = Tool.SELECT
         selected = page.id to item.id
@@ -330,7 +347,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
                 Text(name, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val total = state?.pages?.size ?: 0
                 Text(
-                    if (total == 0) "Opening…" else "Page ${(list.firstVisibleItemIndex + 1).coerceAtMost(total)} of $total" + if (dirty) " · not saved" else "",
+                    if (total == 0) "Opening…" else "Page ${(pageShown + 1).coerceAtMost(total)} of $total" + if (dirty) " · not saved" else "",
                     color = TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }

@@ -57,6 +57,7 @@ class FloatingCalcService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        com.cleanai.debloat.ui.CalcHistory.init(this)
         if (intent?.action == ACTION_STOP || !Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY

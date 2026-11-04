@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -64,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -84,9 +86,27 @@ private val NoteColors = listOf(
     Color.Unspecified, Color(0xFFF6E7A1), Color(0xFFCFE8C2), Color(0xFFC6E2F2), Color(0xFFF6C9BF), Color(0xFFDCD0F2), Color(0xFFE6DFD2),
 )
 
-private fun noteBg(i: Int) = if (i <= 0 || i >= NoteColors.size) CardHi else NoteColors[i]
-private fun noteFg(i: Int) = if (i <= 0 || i >= NoteColors.size) TextPrimary else Ink
-private fun noteFg2(i: Int) = if (i <= 0 || i >= NoteColors.size) TextSecondary else Ink.copy(alpha = 0.62f)
+/**
+ * A note's colour is either a small number (0 = plain, 1..6 = the quick pastels above) or a full ARGB colour
+ * picked from the chart; ARGB colours are opaque, so they never clash with the small numbers.
+ */
+private fun isCustom(c: Int) = c !in NoteColors.indices
+private fun noteBg(c: Int) = when {
+    c == 0 -> CardHi
+    isCustom(c) -> Color(c)
+    else -> NoteColors[c]
+}
+/** Dark text on light colours, white text on dark ones. */
+private fun darkBg(c: Int) = isCustom(c) && Color(c).luminance() < 0.45f
+private fun noteFg(c: Int) = when { c == 0 -> TextPrimary; darkBg(c) -> Color.White; else -> Ink }
+private fun noteFg2(c: Int) = when { c == 0 -> TextSecondary; darkBg(c) -> Color.White.copy(alpha = 0.7f); else -> Ink.copy(alpha = 0.62f) }
+
+/** The colour chart: 12 hues across, from pale to deep down the rows, then a row of greys. */
+private val ChartHues = (0 until 12).map { it * 30f }
+private val ChartTones = listOf(0.12f to 1f, 0.25f to 1f, 0.45f to 1f, 0.7f to 0.95f, 0.85f to 0.78f, 0.85f to 0.52f)
+private val ChartRows: List<List<Int>> =
+    ChartTones.map { (s, v) -> ChartHues.map { h -> android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)) } } +
+        listOf((0 until 12).map { i -> android.graphics.Color.HSVToColor(floatArrayOf(0f, 0f, 1f - i / 11f)) })
 
 private const val TRASH = "\u0000trash"
 private const val LISTS = "\u0000lists"
@@ -530,13 +550,39 @@ private fun NoteEditor(
             onDismissRequest = { colors = false },
             title = { Text("Note colour") },
             text = {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NoteColors.indices.forEach { i ->
-                        Box(
-                            Modifier.size(32.dp).clip(CircleShape).background(noteBg(i))
-                                .border(if (i == note.color) 3.dp else 1.dp, if (i == note.color) Coral else Line, CircleShape)
-                                .clickable { onChange(note.copy(color = i)); colors = false },
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Preview of the note in the chosen colour.
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(noteBg(note.color))
+                            .border(1.dp, Line, RoundedCornerShape(14.dp)).padding(12.dp),
+                    ) { Text(note.title.ifBlank { "Your note" }, color = noteFg(note.color), fontWeight = FontWeight.SemiBold, maxLines = 1) }
+                    Text("Quick colours", color = TextSecondary, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NoteColors.indices.forEach { i ->
+                            Box(
+                                Modifier.size(32.dp).clip(CircleShape).background(noteBg(i))
+                                    .border(if (i == note.color) 3.dp else 1.dp, if (i == note.color) Coral else Line, CircleShape)
+                                    .clickable { onChange(note.copy(color = i)) },
+                            )
+                        }
+                    }
+                    Text("Any colour", color = TextSecondary, fontSize = 12.sp)
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val cell = (maxWidth - 2.dp * 11) / 12
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            ChartRows.forEach { row ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    row.forEach { c ->
+                                        val on = note.color == c
+                                        Box(
+                                            Modifier.size(cell).clip(RoundedCornerShape(4.dp)).background(Color(c))
+                                                .border(if (on) 2.5.dp else 0.5.dp, if (on) Coral else Line, RoundedCornerShape(4.dp))
+                                                .clickable { onChange(note.copy(color = c)) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },

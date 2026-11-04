@@ -71,13 +71,14 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 - **Add:** text boxes (4 sizes, bold, 6 colours), pen (3 widths), highlight / underline / strike-out that snaps to the words (a see-through marker on scans), rectangle, oval, line, arrow, a drawn signature (kept on the phone for next time), pictures from the gallery. Eraser.
 - **Change what you added:** tap or drag to select and move, drag the corner to resize, recolour, edit or delete. Undo and redo.
 - **Pages:** rotate, reorder, delete, add blank pages.
+- Signatures and pictures go on the page you are looking at (the page under the middle of the screen), where you are looking on it; the page counter uses the same page.
 - **Save** writes back to the same file (or *Save as a copy* when the folder doesn't allow changes); asks before leaving with unsaved work. Added items are saved as standard PDF annotations with their own appearance, so other PDF apps show them, and this app can still move or delete them later.
 - Merge (choose order), extract pages, remove pages (`1-3, 5` style ranges), compress (re-saves pictures as JPEG; keeps the original if it would not get smaller).
 - Limits: an edited line's original text is covered, not removed, so search or copy-paste in other apps can still find it; text editing works one line at a time and not on pages turned inside the editor until saved; scanned pages have no text to edit; password-protected PDFs are not opened; no form filling.
 
 **Notes** (`ui/NotesScreen.kt`, `data/Notes.kt`)
 - Text notes and checklists (Enter adds an item, ticked items move to the bottom, clear ticked), switch a note between text and checklist.
-- Colours, pin to the top, tags with filter chips, search (title, text, items, tags), trash with restore that empties itself after 30 days.
+- Colours: 6 quick pastels or any colour from a 12-hue colour chart (text turns white on dark colours), pin to the top, tags with filter chips, search (title, text, items, tags), trash with restore that empties itself after 30 days.
 - Lock a note: it shows as "🔒 Locked" in the list and opens only after the phone's fingerprint/face/screen-lock prompt; screenshots are blocked while it is open. Needs a screen lock on the phone.
 - Share a note, save it as a Markdown file, or export all notes to one Markdown file (locked notes are left out).
 - Stored in one file in the app's private storage, written safely (temporary file, then rename). Nothing is uploaded.
@@ -94,6 +95,8 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 
 **Calculator** (`ui/CalculatorScreen.kt`, `ui/CalculatorModes.kt`, `overlay/FloatingCalcService.kt`)
 - Tabs: Basic (iPhone-style), Scientific (sin/cos/tan, ln/log, √, xʸ, x!, π, e, Ans, Deg/Rad), Finance (Loan EMI, SIP, compound interest, GST add/remove with CGST/SGST), Currency.
+- Edit a calculation like on Samsung phones: tap the sum (or ✎ Edit), tap where the cursor should go, change it with the keypad (⌫ deletes, C clears), and the answer updates as you type; = keeps it. The Scientific tab edits in a small box with the same live answer.
+- History: the last 100 calculations from Basic, Scientific and the floating calculator, kept privately on the phone; tap one to edit and reuse it, or clear them all.
 - Floating calculator: tap ⧉; draggable, can be collapsed, long-press the display to copy. Runs as a foreground service with a notification only while it is open.
 
 **Sparky** understands: "merge PDFs", "open Word", "new spreadsheet", "make a note" / "to-do list", "loan EMI", "scientific calculator", "floating calculator" and opens the real tool.
