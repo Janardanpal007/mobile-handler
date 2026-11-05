@@ -1,124 +1,221 @@
 package com.cleanai.debloat.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import kotlin.math.sin
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.layout.navigationBarsPadding
+import android.content.Context
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cleanai.debloat.R
+import com.cleanai.debloat.data.MyFiles
 import com.cleanai.debloat.data.ShizukuShell
 import com.cleanai.debloat.features.Feature
 import com.cleanai.debloat.features.Features
-import java.time.LocalTime
+import com.cleanai.debloat.features.ToolGroup
 
-/** Home: a dashboard of every feature, built from [Features.all]. */
+private val DefaultPins = listOf("docscan", "calculator", "pdfreader", "qr")
+
+/** What a pinned shortcut does, in a few words; tools without one show their subtitle. */
+private val QuickLabel = mapOf(
+    "docscan" to "Camera → PDF", "calculator" to "Start calculating", "pdfreader" to "Open a PDF", "qr" to "Point at a code",
+    "notes" to "Write a note", "pdf" to "Pick photos", "photo" to "Pick a photo", "weather" to "Today's forecast",
+)
+
+/** The four Home shortcuts, saved on the phone; the user can swap any of them. */
+private object Pins {
+    private const val KEY = "home_pins"
+
+    fun load(ctx: Context): List<String> {
+        val saved = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).getString(KEY, null)
+            ?.split(',')?.filter { Features.byId(it) != null }
+        return if (saved?.size == DefaultPins.size) saved else DefaultPins
+    }
+
+    fun save(ctx: Context, ids: List<String>) {
+        ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putString(KEY, ids.joinToString(",")).apply()
+    }
+}
+
+/** Groups shown on Home, each opening its part of the Tools tab. */
+private val HomeGroups = listOf(ToolGroup.DOCUMENTS, ToolGroup.EVERYDAY, ToolGroup.MEDIA, ToolGroup.DEVICE)
+
+/** Home, task first: search, four pinned actions, what you were working on, and the tool groups. */
 @Composable
 fun HomeScreen(
     name: String,
     shizuku: ShizukuShell.State,
     onFeature: (Feature) -> Unit,
-    onAssistant: () -> Unit,
+    onAsk: (String?) -> Unit,
     onSettings: () -> Unit,
-    onFiles: () -> Unit,
+    onOpenDoc: (MyFiles.Doc) -> Unit,
+    onGroup: (ToolGroup?) -> Unit,
 ) {
-    Box(Modifier.fillMaxSize()) {
-        GlowBackground()
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .systemBarsPadding(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 110.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item(span = { GridItemSpan(2) }) { Box(Modifier.enter(0)) { Header(onSettings) } }
-            item(span = { GridItemSpan(2) }) { Box(Modifier.enter(1)) { GreetingCard(name, shizuku) } }
-            item(span = { GridItemSpan(2) }) {
-                Row(Modifier.padding(top = 10.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Features", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    Text("${Features.all.size} tools", color = TextSecondary, fontSize = 13.sp)
-                }
-            }
-            itemsIndexed(Features.all, key = { _, f -> f.id }) { i, f -> Box(Modifier.enter(i + 2)) { FeatureTile(f) { onFeature(f) } } }
-            item(span = { GridItemSpan(2) }) {
-                Text(
-                    BUILT_BY,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
+    val ctx = LocalContext.current
+    var query by rememberSaveable { mutableStateOf("") }
+    val pins = remember { mutableStateListOf<String>().apply { addAll(Pins.load(ctx)) } }
+    var editing by remember { mutableStateOf<Int?>(null) }
+    val recent = remember { MyFiles.list(ctx).take(2) }
+    val focus = LocalFocusManager.current
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { Box(Modifier.enter(0)) { Header(name, onSettings, onSparky = { onAsk(null) }) } }
+        item { Box(Modifier.enter(1)) { StatusChip(shizukuLabel(shizuku), shizukuDot(shizuku), background = Card, textColor = TextSecondary) } }
+        item {
+            Box(Modifier.enter(2)) {
+                SearchField(query, { query = it }, onGo = {
+                    val hits = searchTools(query)
+                    focus.clearFocus()
+                    if (hits.size == 1) onFeature(hits[0]) else if (query.isNotBlank()) onAsk(query.trim())
+                })
             }
         }
-        BottomBar(
-            modifier = Modifier
-                .align(Alignment.BottomCenter),
-            onFiles = onFiles,
-            onAssistant = onAssistant,
-            onSettings = onSettings,
+        if (query.isNotBlank()) {
+            val hits = searchTools(query)
+            hits.forEach { f -> item(key = "hit_${f.id}") { ToolRow(f) { focus.clearFocus(); onFeature(f) } } }
+            item(key = "ask") {
+                AskRow("Ask Sparky: “${query.trim()}”") { focus.clearFocus(); onAsk(query.trim()) }
+            }
+            if (hits.isEmpty()) item { Text("No tool by that name. Sparky can still help.", color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp)) }
+            return@LazyColumn
+        }
+        item { Box(Modifier.enter(3)) { SectionTitle("Quick actions", "Long-press to change") } }
+        item {
+            Column(Modifier.enter(4), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                pins.chunked(2).forEachIndexed { row, pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEachIndexed { col, id ->
+                            val f = Features.byId(id) ?: return@forEachIndexed
+                            QuickAction(f, Modifier.weight(1f), onClick = { onFeature(f) }, onLongClick = { editing = row * 2 + col })
+                        }
+                    }
+                }
+            }
+        }
+        if (recent.isNotEmpty()) {
+            item { Box(Modifier.enter(5)) { SectionTitle("Continue", null) } }
+            recent.forEach { doc -> item(key = doc.dir.name) { Box(Modifier.enter(6)) { RecentRow(doc) { onOpenDoc(doc) } } } }
+        }
+        item { Box(Modifier.enter(7)) { SectionTitle("All tools", "See all", onAction = { onGroup(null) }) } }
+        item {
+            Column(Modifier.enter(8), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HomeGroups.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        pair.forEach { g -> GroupCard(g, Modifier.weight(1f)) { onGroup(g) } }
+                    }
+                }
+            }
+        }
+        item {
+            Text(BUILT_BY, color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        }
+    }
+
+    editing?.let { slot ->
+        AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text("Choose a shortcut") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Features.all.filter { it.id !in pins || it.id == pins[slot] }.filter { it.group != ToolGroup.APP }.forEach { f ->
+                        ToolRow(f, selected = f.id == pins[slot]) {
+                            pins[slot] = f.id
+                            Pins.save(ctx, pins.toList())
+                            editing = null
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { editing = null }) { Text("Close") } },
+            dismissButton = {
+                TextButton(onClick = { pins.clear(); pins.addAll(DefaultPins); Pins.save(ctx, DefaultPins); editing = null }) { Text("Reset all") }
+            },
         )
     }
 }
 
+/** Tools whose name, description or group contains every word typed. */
+internal fun searchTools(query: String): List<Feature> {
+    val words = query.lowercase().split(' ').filter { it.isNotBlank() }
+    if (words.isEmpty()) return emptyList()
+    return Features.all.filter { f ->
+        val hay = "${f.title} ${f.subtitle} ${f.group.title}".lowercase()
+        words.all { it in hay }
+    }
+}
+
 @Composable
-private fun Header(onSettings: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppMark(Modifier.size(40.dp))
+private fun Header(name: String, onSettings: () -> Unit, onSparky: () -> Unit) {
+    val hour = rememberHour()
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        SparkyPortrait(
+            timeMood(hour),
+            Modifier.size(72.dp),
+            description = "Sparky. Opens the assistant",
+            onTap = onSparky,
+        )
         Spacer(Modifier.width(10.dp))
-        Text("Mobile Handler", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (name.isBlank()) greeting(hour) else "${greeting(hour)}, $name",
+                color = TextSecondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            Text("What shall we do?", color = TextPrimary, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
+        }
         ThemeButton()
         Spacer(Modifier.width(8.dp))
         RoundIconButton(Icons.Filled.Settings, "Settings", onSettings)
@@ -146,156 +243,149 @@ private fun ThemeButton() {
     }
 }
 
-/** The dark "card" from the HaHo kit, holding the greeting and the Shizuku status. */
 @Composable
-private fun GreetingCard(name: String, shizuku: ShizukuShell.State) {
-    val hour = LocalTime.now().hour
-    val greeting = when (hour) {
-        in 5..11 -> "Good morning"
-        in 12..16 -> "Good afternoon"
-        in 17..20 -> "Good evening"
-        else -> "Good night"
-    }
-    val wave = if (hour in 5..20) "👋" else "🌙"
-    // Tapping Sparky makes it flare up: the whole card shakes and glows while the flames run.
-    val shock = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
-    val zap = {
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        scope.launch {
-            shock.snapTo(0f)
-            shock.animateTo(1f, tween(850, easing = LinearEasing))
-            shock.snapTo(0f)
-        }
-        Unit
-    }
-    val s = shock.value
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .graphicsLayer { translationX = if (s > 0f) sin(s * 48f) * (1f - s) * 7.dp.toPx() else 0f }
-            .clip(RoundedCornerShape(28.dp))
-            .background(Charcoal)
-            .drawWithContent {
-                drawContent()
-                if (s > 0f) drawRect(Color(0xFFFFB066).copy(alpha = 0.3f * (1f - s) * if ((s * 14).toInt() % 2 == 0) 1f else 0.4f))
-            }
-            .padding(20.dp),
+internal fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String = "Search tools or ask Sparky…", onGo: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(CardHi)
+            .border(1.dp, Line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Greeting on the left; Sparky on the right, centred top to bottom.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(if (name.isBlank()) "$greeting $wave" else "$greeting, $name $wave", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
-                Spacer(Modifier.height(4.dp))
-                Text("What should I handle for you?", color = Color.White, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
-            }
-            Sparky(Modifier.size(132.dp), shock = s, onTap = zap)
+        Icon(painterResource(R.drawable.ic_search), contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f).padding(vertical = 14.dp)) {
+            if (value.isEmpty()) Text(placeholder, color = TextSecondary, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            BasicTextField(
+                value, onChange,
+                singleLine = true,
+                textStyle = TextStyle(color = TextPrimary, fontSize = 15.sp),
+                cursorBrush = SolidColor(Coral),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onGo() }),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        // Under the row, the full card width keeps the status on one line.
-        Spacer(Modifier.height(10.dp))
-        StatusChip(shizukuLabel(shizuku), shizukuDot(shizuku))
+        if (value.isNotEmpty()) {
+            Box(
+                Modifier.size(32.dp).clip(CircleShape).bouncy { onChange("") },
+                contentAlignment = Alignment.Center,
+            ) { Text("✕", color = TextSecondary, fontSize = 14.sp) }
+        }
     }
 }
 
 @Composable
-private fun FeatureTile(f: Feature, onClick: () -> Unit) {
-    // Tapping a tool makes its icon pop up out of the card in 3D (lift, tilt, shadow), then opens it.
-    val pop = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
-    Column(
-        Modifier.bouncy {
-            if (pop.isRunning) return@bouncy
-            scope.launch {
-                pop.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
-                onClick()
-                delay(400)
-                pop.snapTo(0f)
-            }
-        }
-            .fillMaxWidth()
-            .aspectRatio(1.15f)
-            .clip(RoundedCornerShape(26.dp))
-            .background(CardHi)
-            .border(1.dp, Line, RoundedCornerShape(26.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Box(
-            Modifier
-                .graphicsLayer {
-                    val p = pop.value
-                    scaleX = 1f + 0.32f * p; scaleY = 1f + 0.32f * p
-                    rotationX = 16f * p; rotationY = -20f * p
-                    translationY = -5.dp.toPx() * p
-                    cameraDistance = 6f * density
-                    shadowElevation = 14.dp.toPx() * p
-                    shape = CircleShape
-                    clip = true
-                }
-                .size(46.dp)
-                .background(f.tint)
-                // Glossy highlight so the icon always reads as a little 3D ball.
-                .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.45f), Color.Transparent), center = Offset(30f, 26f), radius = 90f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(painterResource(f.icon), contentDescription = null, tint = Ink, modifier = Modifier.size(24.dp))
-        }
-        Column {
-            Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(f.subtitle, color = TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+internal fun SectionTitle(title: String, action: String?, onAction: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        if (action != null) {
+            Text(
+                action,
+                color = if (onAction != null) Coral else TextSecondary,
+                fontSize = 13.sp,
+                fontWeight = if (onAction != null) FontWeight.SemiBold else FontWeight.Normal,
+                modifier = if (onAction != null) Modifier.clip(RoundedCornerShape(8.dp)).bouncy(onClick = onAction).padding(horizontal = 6.dp, vertical = 8.dp) else Modifier,
+            )
         }
     }
 }
 
-/** HaHo floating pill bar: Home · dark centre button (Assistant) · Settings. */
+/** The pastel ball behind a tool's icon. */
 @Composable
-private fun BottomBar(modifier: Modifier, onFiles: () -> Unit, onAssistant: () -> Unit, onSettings: () -> Unit) {
-    // Full-width bar: nothing from the grid shows beside it, just the three buttons.
+internal fun ToolIcon(f: Feature, size: Dp = 44.dp) {
+    Box(
+        Modifier.size(size).clip(CircleShape).background(f.tint)
+            .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.4f), Color.Transparent), center = Offset(size.value * 0.7f, size.value * 0.6f), radius = size.value * 1.9f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(painterResource(f.icon), contentDescription = null, tint = Ink, modifier = Modifier.size(size * 0.52f))
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun QuickAction(f: Feature, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
     Column(
         modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(CardHi)
-            .border(1.dp, Line, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .navigationBarsPadding(),
+            .border(1.dp, Line, RoundedCornerShape(24.dp))
+            .combinedClickable(role = Role.Button, onLongClickLabel = "Change shortcut", onClick = onClick, onLongClick = onLongClick)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BarItem(Modifier.weight(1f), "My Files", onClick = onFiles) {
-                Icon(painterResource(R.drawable.ic_folder), contentDescription = null, tint = TextSecondary, modifier = Modifier.size(26.dp))
-            }
-            // The assistant: the same revolving orb as in the chat, like Siri.
-            Box(
-                Modifier.bouncy(onClick = onAssistant)
-                    .weight(1f),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier.size(64.dp).clip(CircleShape).background(Charcoal),
-                    contentAlignment = Alignment.Center,
-                ) { Orb(Modifier.size(60.dp), active = true) }
-            }
-            BarItem(Modifier.weight(1f), "Settings", onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(26.dp))
-            }
+        ToolIcon(f, 48.dp)
+        Column {
+            Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(QuickLabel[f.id] ?: f.subtitle, color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 @Composable
-private fun BarItem(modifier: Modifier, label: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(
-        modifier.bouncy(onClick = onClick).padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+internal fun ToolRow(f: Feature, selected: Boolean = false, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (selected) Card else CardHi)
+            .border(1.dp, if (selected) Coral else Line, RoundedCornerShape(16.dp))
+            .bouncy(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon()
-        Text(
-            label,
-            color = TextSecondary,
-            fontSize = 13.sp,
-        )
+        ToolIcon(f, 40.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(f.subtitle, color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text("›", color = TextSecondary, fontSize = 22.sp)
+    }
+}
+
+@Composable
+private fun AskRow(label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Card).bouncy(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SparkyPortrait(SparkyMood.THINKING, Modifier.size(40.dp), animate = false)
+        Spacer(Modifier.width(12.dp))
+        Text(label, color = TextPrimary, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit) {
+    val files = remember { Features.byId("files") }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(16.dp))
+            .bouncy(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val reader = Features.byId(if (doc.hasPdf) "pdfreader" else "photo") ?: files
+        if (reader != null) ToolIcon(reader, 40.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(doc.title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(if (doc.hasPdf) "PDF · ${doc.sizeText}" else "Photos · ${doc.sizeText}", color = TextSecondary, fontSize = 13.sp)
+        }
+        Text("Open", color = Coral, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun GroupCard(g: ToolGroup, modifier: Modifier, onClick: () -> Unit) {
+    val tools = remember(g) { Features.all.filter { it.group == g } }
+    Column(
+        modifier.clip(RoundedCornerShape(24.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(24.dp))
+            .bouncy(onClick = onClick).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+            tools.take(3).forEach { f ->
+                Box(Modifier.border(2.dp, CardHi, CircleShape)) { ToolIcon(f, 32.dp) }
+            }
+        }
+        Column {
+            Text(g.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${tools.size} tools", color = TextSecondary, fontSize = 13.sp)
+        }
     }
 }

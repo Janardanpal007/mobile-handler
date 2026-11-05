@@ -32,20 +32,24 @@ object AppTheme {
 
 private fun pick(light: Long, dark: Long) = Color(if (AppTheme.dark) dark else light)
 
-// HaHo-style palette: warm greys, deep green-charcoal, coral accent and soft pastel chips.
-// Dark mode keeps the same accents on a deep green-black.
-val Bg get() = pick(0xFFEEEDE9, 0xFF121614)
-val Card get() = pick(0xFFE3E2DD, 0xFF1D2320)
-val CardHi get() = pick(0xFFF8F7F4, 0xFF222926)
-val Line get() = pick(0xFFD5D4CE, 0xFF333B37)
+// "Sparky Flow": Soft Porcelain (light) and Obsidian Forest (dark). Calm surfaces, coral accent, pastel tool chips.
+val Bg get() = pick(0xFFF7F9F5, 0xFF101512)
+/** Raised: chips, secondary buttons, pressed fills. */
+val Card get() = pick(0xFFEAF0E9, 0xFF29332C)
+/** Surface: cards and sheets. */
+val CardHi get() = pick(0xFFFFFFFF, 0xFF1B231E)
+val Line get() = pick(0xFFCBD6CC, 0xFF3B4A3E)
 val Charcoal get() = pick(0xFF27312C, 0xFF35423B)
 val Sage get() = pick(0xFF4E5F56, 0xFF8FA398)
-val TextPrimary get() = pick(0xFF1E2521, 0xFFECEEEA)
-val TextSecondary get() = pick(0xFF6D7570, 0xFF9BA59F)
+val TextPrimary get() = pick(0xFF19241C, 0xFFEDF4ED)
+val TextSecondary get() = pick(0xFF526357, 0xFFAAB9AD)
 
 /** Always-dark ink for icons sitting on the pastel circles. */
 val Ink = Color(0xFF27312C)
-val Coral = Color(0xFFEE6A57)
+/** Brand accent: deeper on light so text and icons in it stay readable, brighter on dark. */
+val Coral get() = pick(0xFFC24A36, 0xFFFF806B)
+/** The original pastel coral, for tool chips with dark ink icons (same in both themes). */
+val CoralTint = Color(0xFFEE6A57)
 val Butter = Color(0xFFF1DF78)
 val Sky = Color(0xFFAFD8EE)
 val Mint = Color(0xFFBDE2AE)

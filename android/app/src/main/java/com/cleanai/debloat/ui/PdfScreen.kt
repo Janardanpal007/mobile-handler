@@ -100,12 +100,21 @@ private enum class PdfTool(val title: String, val blurb: String) {
 
 private val WatermarkColors = listOf(0xFF7A7A7A.toInt(), 0xFFD32F2F.toInt(), 0xFF1F4FB8.toInt(), 0xFF2E7D32.toInt())
 
+/** A PDF to open straight away the next time the PDF screen starts (e.g. from "Continue" on Home). */
+object PdfLaunch {
+    private var pending: Uri? = null
+
+    fun open(uri: Uri) { pending = uri }
+
+    fun take(): Uri? = pending.also { pending = null }
+}
+
 /** PDF Reader & Editor: read with pinch-zoom, draw / highlight / add text, merge, split, remove pages and compress. */
 @Composable
 fun PdfScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var open by remember { mutableStateOf<Uri?>(null) }
+    var open by remember { mutableStateOf(PdfLaunch.take()) }
     var tool by remember { mutableStateOf<PdfTool?>(null) }
     var source by remember { mutableStateOf<Uri?>(null) }
     val merging = remember { mutableStateListOf<Uri>() }

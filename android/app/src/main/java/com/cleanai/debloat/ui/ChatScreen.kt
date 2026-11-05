@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.delay
 import com.cleanai.debloat.R
 import com.cleanai.debloat.agent.Act
 import com.cleanai.debloat.agent.AgentMsg
@@ -99,6 +100,17 @@ fun ChatScreen(vm: AgentViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
         listState.animateScrollToItem(count - 1)
     }
 
+    // Sparky cheers when a task finishes cleanly and looks worried when part of it failed.
+    val lastResult = vm.items.lastOrNull { it is ResultMsg } as? ResultMsg
+    val firstResultId = remember { lastResult?.id }
+    var reaction by remember { mutableStateOf<SparkyMood?>(null) }
+    LaunchedEffect(lastResult?.id) {
+        if (lastResult == null || lastResult.id == firstResultId) return@LaunchedEffect
+        reaction = nextReaction(reaction, if (lastResult.lines.all { it.ok }) SparkyMood.HAPPY else SparkyMood.OOPS)
+        delay(REACTION_MS)
+        reaction = null
+    }
+
     Box(Modifier.fillMaxSize()) {
         GlowBackground()
         Column(
@@ -126,7 +138,7 @@ fun ChatScreen(vm: AgentViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "hero") { Hero(vm.typing || vm.busy) }
+                item(key = "hero") { Hero(working = vm.typing || vm.busy, reaction = reaction) }
                 items(vm.items, key = { it.id }) { item ->
                     // New messages fade in and the list glides to make room.
                     Box(Modifier.animateItem()) { when (item) {
@@ -147,15 +159,17 @@ fun ChatScreen(vm: AgentViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
 
 // ------------------------------------------------------------------ chrome
 
+private const val REACTION_MS = 2_500L
+
 @Composable
-private fun Hero(active: Boolean) {
+private fun Hero(working: Boolean, reaction: SparkyMood?) {
     Column(
         Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Orb(Modifier.size(110.dp), active)
+        SparkyPortrait(sparkyMood(reaction, working, rememberHour()), Modifier.size(120.dp), description = "Sparky")
         Text(
             "How can I help?",
             color = TextPrimary,

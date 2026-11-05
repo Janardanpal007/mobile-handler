@@ -1,6 +1,7 @@
 package com.cleanai.debloat.ui
 
 import android.app.Activity
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -81,7 +82,7 @@ fun AppRoot(vm: AgentViewModel) {
 @Composable
 private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goHome: () -> Unit, onIntro: (Feature, open: () -> Unit) -> Unit) {
     when (screen) {
-        HOME -> HomeScreen(
+        HOME -> MainTabs(
             name = vm.userName,
             shizuku = vm.shizuku,
             onFeature = { f ->
@@ -96,10 +97,19 @@ private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goH
                     }
                 }
             },
-            // The orb in the bottom bar opens the Assistant chat.
-            onAssistant = { go(ASSISTANT) },
+            // Sparky, the Ask tab and "Ask Sparky: …" in search all open the Assistant; typed text is sent for it.
+            onAsk = { text ->
+                go(ASSISTANT)
+                text?.let { vm.onSend(it) }
+            },
             onSettings = { go(SETTINGS) },
             onFiles = { go("files") },
+            onOpenDoc = { doc ->
+                if (doc.hasPdf) {
+                    PdfLaunch.open(Uri.fromFile(doc.pdf))
+                    go("pdfreader")
+                } else go("files")
+            },
         )
         ASSISTANT -> ChatScreen(vm, onBack = goHome, onSettings = { go(SETTINGS) })
         PROFILE -> ProfileScreen(vm, firstTime = false, onDone = { go(SETTINGS) })

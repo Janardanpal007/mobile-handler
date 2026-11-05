@@ -67,6 +67,7 @@ The QR and document scanners come from Google Play services, so the first scan m
 
 Photo AI models: [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) and [DDColor](https://github.com/piddnad/DDColor), open source.
 Phone Cleaner uses [Shizuku](https://github.com/RikkaApps/Shizuku). Scanners by Google ML Kit. PDF editing uses [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android).
+Sparky the mascot's pictures and animation frames were made with ChatGPT image generation.
 
 ## Developer
 
