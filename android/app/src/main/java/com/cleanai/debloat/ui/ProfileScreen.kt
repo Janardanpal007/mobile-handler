@@ -78,7 +78,7 @@ fun ProfileScreen(vm: AgentViewModel, firstTime: Boolean, onDone: () -> Unit) {
                 .padding(16.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(50))
-                .background(if (ok) Coral else Coral.copy(alpha = 0.35f))
+                .background(if (ok) Accent else Accent.copy(alpha = 0.35f))
                 .padding(vertical = 18.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -100,7 +100,7 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, type
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = TextPrimary, focusedLabelColor = TextPrimary, cursorColor = Coral,
+            focusedBorderColor = TextPrimary, focusedLabelColor = TextPrimary, cursorColor = Accent,
             unfocusedContainerColor = CardHi, focusedContainerColor = CardHi,
         ),
     )

@@ -239,7 +239,7 @@ fun NotesScreen(onBack: () -> Unit) {
                 Box(Modifier.weight(1f)) {
                     if (query.isEmpty()) Text("Search notes", color = TextSecondary, fontSize = 15.sp)
                     BasicTextField(
-                        query, { query = it }, singleLine = true, cursorBrush = SolidColor(Coral),
+                        query, { query = it }, singleLine = true, cursorBrush = SolidColor(Accent),
                         textStyle = TextStyle(color = TextPrimary, fontSize = 15.sp), modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -268,7 +268,7 @@ fun NotesScreen(onBack: () -> Unit) {
                     item(span = StaggeredGridItemSpan.FullLine) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Notes here are deleted for good after 30 days. Tap one to restore it.", color = TextSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { notes.removeAll { it.trashed != 0L }; tick++ }) { Text("Empty trash", color = Coral) }
+                            TextButton(onClick = { notes.removeAll { it.trashed != 0L }; tick++ }) { Text("Empty trash", color = Accent) }
                         }
                     }
                     items(trash, key = { it.id }) { n -> NoteCard(n) { trashPick = n } }
@@ -319,7 +319,7 @@ fun NotesScreen(onBack: () -> Unit) {
             title = { Text(n.title.ifBlank { "Untitled note" }) },
             text = { Text("Restore this note, or delete it for good? Deleting can't be undone.") },
             confirmButton = { TextButton(onClick = { put(n.copy(trashed = 0), touch = false); trashPick = null }) { Text("Restore") } },
-            dismissButton = { TextButton(onClick = { remove(n.id); trashPick = null }) { Text("Delete forever", color = Coral) } },
+            dismissButton = { TextButton(onClick = { remove(n.id); trashPick = null }) { Text("Delete forever", color = Accent) } },
         )
     }
 }
@@ -421,7 +421,7 @@ private fun NoteEditor(
                         menu = false
                         saveFile.launch(note.title.ifBlank { "Note" }.replace(Regex("[\\\\/:*?\"<>|]"), " ").take(60) + ".md")
                     })
-                    DropdownMenuItem(text = { Text("Move to trash", color = Coral) }, onClick = { menu = false; onTrash() })
+                    DropdownMenuItem(text = { Text("Move to trash", color = Accent) }, onClick = { menu = false; onTrash() })
                 }
             }
         }
@@ -434,7 +434,7 @@ private fun NoteEditor(
                 BasicTextField(
                     note.title, { onChange(note.copy(title = it.replace("\n", " "))) },
                     textStyle = TextStyle(color = fg, fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
-                    cursorBrush = SolidColor(Coral),
+                    cursorBrush = SolidColor(Accent),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -450,7 +450,7 @@ private fun NoteEditor(
                     BasicTextField(
                         note.body, { onChange(note.copy(body = it)) },
                         textStyle = TextStyle(color = fg, fontSize = 17.sp, lineHeight = 25.sp),
-                        cursorBrush = SolidColor(Coral),
+                        cursorBrush = SolidColor(Accent),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 200.dp).focusRequester(bodyFocus),
                     )
@@ -462,8 +462,8 @@ private fun NoteEditor(
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                         Box(
                             Modifier.size(26.dp).clip(RoundedCornerShape(7.dp))
-                                .background(if (item.done) Coral else Color.Transparent)
-                                .border(2.dp, if (item.done) Coral else fg2, RoundedCornerShape(7.dp))
+                                .background(if (item.done) Accent else Color.Transparent)
+                                .border(2.dp, if (item.done) Accent else fg2, RoundedCornerShape(7.dp))
                                 .clickable {
                                     // Ticked items sink to the bottom; unticked ones rise back above them.
                                     val rest = items.toMutableList().apply { removeAt(i) }
@@ -493,7 +493,7 @@ private fun NoteEditor(
                                     color = if (item.done) fg2 else fg, fontSize = 17.sp,
                                     textDecoration = if (item.done) TextDecoration.LineThrough else null,
                                 ),
-                                cursorBrush = SolidColor(Coral),
+                                cursorBrush = SolidColor(Accent),
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                                 modifier = Modifier.fillMaxWidth().focusRequester(fr),
                             )
@@ -520,7 +520,7 @@ private fun NoteEditor(
                 }
                 LaunchedEffect(note.id) { if (note.isEmpty) runCatching { requesters[0]?.requestFocus() } }
                 if (items.any { it.done }) Text(
-                    "Clear ticked items", color = Coral, fontSize = 14.sp,
+                    "Clear ticked items", color = Accent, fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 200.dp).clip(RoundedCornerShape(50)).clickable { setItems(items.filter { !it.done }) }.padding(6.dp),
                 ) else Spacer(Modifier.height(200.dp))
             }
@@ -561,7 +561,7 @@ private fun NoteEditor(
                         NoteColors.indices.forEach { i ->
                             Box(
                                 Modifier.size(32.dp).clip(CircleShape).background(noteBg(i))
-                                    .border(if (i == note.color) 3.dp else 1.dp, if (i == note.color) Coral else Line, CircleShape)
+                                    .border(if (i == note.color) 3.dp else 1.dp, if (i == note.color) Accent else Line, CircleShape)
                                     .clickable { onChange(note.copy(color = i)) },
                             )
                         }
@@ -576,7 +576,7 @@ private fun NoteEditor(
                                         val on = note.color == c
                                         Box(
                                             Modifier.size(cell).clip(RoundedCornerShape(4.dp)).background(Color(c))
-                                                .border(if (on) 2.5.dp else 0.5.dp, if (on) Coral else Line, RoundedCornerShape(4.dp))
+                                                .border(if (on) 2.5.dp else 0.5.dp, if (on) Accent else Line, RoundedCornerShape(4.dp))
                                                 .clickable { onChange(note.copy(color = c)) },
                                         )
                                     }

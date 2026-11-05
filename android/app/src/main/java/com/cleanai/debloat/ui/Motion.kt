@@ -147,7 +147,7 @@ fun IntroOverlay(onDone: () -> Unit) {
             Box(contentAlignment = Alignment.Center) {
                 Box(
                     Modifier.size(220.dp).scale(0.6f + glow.value * 0.4f).alpha(glow.value * 0.85f)
-                        .background(Brush.radialGradient(listOf(Coral.copy(alpha = 0.45f), Color.Transparent)), CircleShape),
+                        .background(Brush.radialGradient(listOf(Accent.copy(alpha = 0.45f), Color.Transparent)), CircleShape),
                 )
                 Orb(
                     Modifier.size(120.dp).scale(orbScale.value).alpha(orbAlpha.value).clip(CircleShape),

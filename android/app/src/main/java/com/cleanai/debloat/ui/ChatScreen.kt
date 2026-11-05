@@ -221,7 +221,7 @@ private fun InputBar(enabled: Boolean, onSend: (String) -> Unit) {
                 disabledIndicatorColor = Color.Transparent,
                 focusedTextColor = TextPrimary,
                 unfocusedTextColor = TextPrimary,
-                cursorColor = Coral,
+                cursorColor = Accent,
             ),
         )
         val empty = text.isBlank()
@@ -261,10 +261,10 @@ private fun AgentBubble(msg: AgentMsg) {
                         Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(Coral.copy(alpha = 0.14f))
-                            .border(1.dp, Coral.copy(alpha = 0.45f), CircleShape),
+                            .background(Accent.copy(alpha = 0.14f))
+                            .border(1.dp, Accent.copy(alpha = 0.45f), CircleShape),
                         contentAlignment = Alignment.Center,
-                    ) { Text("${i + 1}", color = Coral, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text("${i + 1}", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                     Spacer(Modifier.width(10.dp))
                     Text(step, color = TextPrimary.copy(alpha = 0.88f), fontSize = 14.sp, lineHeight = 20.sp)
                 }
@@ -309,7 +309,7 @@ private fun TypingBubble() {
                     infiniteRepeatable(tween(500, delayMillis = i * 150), RepeatMode.Reverse),
                     label = "dot$i",
                 )
-                Box(Modifier.size(7.dp).alpha(a).clip(CircleShape).background(Coral))
+                Box(Modifier.size(7.dp).alpha(a).clip(CircleShape).background(Accent))
             }
         }
     }
@@ -325,8 +325,8 @@ private fun ChoiceList(msg: ChoicesMsg, onPick: (Choice) -> Unit) {
             val picked = msg.picked == c.label
             val used = msg.picked != null && !c.action.isLink
             val border = when {
-                picked -> Coral
-                c.recommended && !used -> Coral.copy(alpha = 0.7f)
+                picked -> Accent
+                c.recommended && !used -> Accent.copy(alpha = 0.7f)
                 else -> Line
             }
             Row(
@@ -334,7 +334,7 @@ private fun ChoiceList(msg: ChoicesMsg, onPick: (Choice) -> Unit) {
                     .fillMaxWidth()
                     .alpha(if (used && !picked) 0.4f else 1f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(if (c.recommended && !used) Coral.copy(alpha = 0.10f) else Card)
+                    .background(if (c.recommended && !used) Accent.copy(alpha = 0.10f) else Card)
                     .border(1.dp, border, RoundedCornerShape(18.dp))
 
                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -360,7 +360,7 @@ private fun RecommendedTag(small: Boolean = false) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(Coral)
+            .background(Accent)
             .padding(horizontal = if (small) 5.dp else 8.dp, vertical = 2.dp),
     )
 }
@@ -370,7 +370,7 @@ private fun RecommendedTag(small: Boolean = false) {
 @Composable
 private fun ReviewCard(msg: ReviewMsg, decisions: Map<String, Decision>, onDecide: (String, Decision) -> Unit) {
     val accent = when (msg.apps.firstOrNull()?.info?.safety) {
-        Safety.RECOMMENDED -> Coral
+        Safety.RECOMMENDED -> Accent
         Safety.OPTIONAL -> Blue
         else -> Amber
     }
@@ -505,7 +505,7 @@ private fun ProgressCard(msg: ProgressMsg) {
     ) {
         Row {
             Text(msg.label, color = TextPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("${msg.done}/${msg.total}", color = Coral, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("${msg.done}/${msg.total}", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(10.dp))
         LinearProgressIndicator(
@@ -514,7 +514,7 @@ private fun ProgressCard(msg: ProgressMsg) {
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
-            color = Coral,
+            color = Accent,
             trackColor = CardHi,
         )
     }
@@ -570,7 +570,7 @@ fun SettingsDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> U
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(key) }) { Text("Save", color = Coral) } },
+        confirmButton = { TextButton(onClick = { onSave(key) }) { Text("Save", color = Accent) } },
         dismissButton = {
             TextButton(onClick = { onSave("") }) { Text("Remove key", color = TextSecondary) }
         },

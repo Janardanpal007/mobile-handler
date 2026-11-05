@@ -81,23 +81,24 @@ fun AppRoot(vm: AgentViewModel) {
 
 @Composable
 private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goHome: () -> Unit, onIntro: (Feature, open: () -> Unit) -> Unit) {
+    // The tool opens behind its colour intro, once the colour covers the screen.
+    val openFeature: (Feature) -> Unit = { f ->
+        onIntro(f) {
+            when (val o = f.opens) {
+                is Opens.Screen -> go(f.id)
+                is Opens.Assistant -> {
+                    go(ASSISTANT)
+                    o.act?.let { vm.onTool(it, f.title) }
+                }
+            }
+        }
+    }
     when (screen) {
         HOME -> MainTabs(
             name = vm.userName,
             shizuku = vm.shizuku,
-            onFeature = { f ->
-                // The tool opens behind its colour intro, once the colour covers the screen.
-                onIntro(f) {
-                    when (val o = f.opens) {
-                        is Opens.Screen -> go(f.id)
-                        is Opens.Assistant -> {
-                            go(ASSISTANT)
-                            o.act?.let { vm.onTool(it, f.title) }
-                        }
-                    }
-                }
-            },
-            // Sparky, the Ask tab and "Ask Sparky: …" in search all open the Assistant; typed text is sent for it.
+            onFeature = openFeature,
+            // Sparky, the Ask card and "Ask Sparky: …" in search all open the Assistant; typed text is sent for it.
             onAsk = { text ->
                 go(ASSISTANT)
                 text?.let { vm.onSend(it) }
@@ -122,7 +123,7 @@ private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goH
         )
         else -> {
             val content = (Features.byId(screen)?.opens as? Opens.Screen)?.content
-            if (content != null) content(goHome) else LaunchedEffect(screen) { goHome() }
+            if (content != null) content(goHome) { id -> Features.byId(id)?.let(openFeature) } else LaunchedEffect(screen) { goHome() }
         }
     }
 }

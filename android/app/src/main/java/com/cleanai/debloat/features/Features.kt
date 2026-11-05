@@ -26,7 +26,7 @@ import com.cleanai.debloat.ui.Sky
  *  1. Add an icon to res/drawable (a 24dp vector).
  *  2. Add a [Feature] to [Features.all] below.
  *     - [Opens.Assistant] runs an assistant action in the chat (good for guided, step-by-step tools).
- *     - [Opens.Screen] shows its own full screen; write it as a @Composable taking an onBack callback.
+ *     - [Opens.Screen] shows its own full screen; write it as a @Composable taking onBack (and openTool if it links to other tools).
  * The home grid, navigation and back button pick it up automatically.
  */
 data class Feature(
@@ -48,28 +48,28 @@ sealed interface Opens {
     /** Opens the assistant and, if [act] is set, runs it right away. */
     data class Assistant(val act: Act?) : Opens
 
-    /** A feature with its own screen. */
-    class Screen(val content: @Composable (onBack: () -> Unit) -> Unit) : Opens
+    /** A feature with its own screen. [openTool] opens another feature by its id (e.g. the PDF studio opening "docscan"). */
+    class Screen(val content: @Composable (onBack: () -> Unit, openTool: (String) -> Unit) -> Unit) : Opens
 }
 
 object Features {
     val all: List<Feature> = listOf(
         Feature("adblock", "Ad Blocker", "Block ads & trackers", R.drawable.ic_tool_shield, Sky, Opens.Assistant(Act.Trackers), ToolGroup.DEVICE),
-        Feature("calculator", "Calculator", "Scientific, finance, currency", R.drawable.ic_tool_calc, Butter, Opens.Screen { onBack -> CalculatorScreen(onBack) }, ToolGroup.EVERYDAY),
+        Feature("calculator", "Calculator", "Scientific, finance, currency", R.drawable.ic_tool_calc, Butter, Opens.Screen { onBack, _ -> CalculatorScreen(onBack) }, ToolGroup.EVERYDAY),
         Feature("qr", "Scan QR", "Links, Wi-Fi, text", R.drawable.ic_tool_qr, Coral, Opens.Assistant(Act.ScanQr), ToolGroup.MEDIA),
         Feature("docscan", "Scan Document", "Save pages as PDF", R.drawable.ic_tool_doc, Mint, Opens.Assistant(Act.ScanDoc), ToolGroup.DOCUMENTS),
         Feature("pdf", "Photos → PDF", "Combine images", R.drawable.ic_tool_pdf, Sky, Opens.Assistant(Act.MakePdf), ToolGroup.DOCUMENTS),
-        Feature("pdfreader", "PDF Reader", "Edit, sign, merge", R.drawable.ic_tool_reader, Coral, Opens.Screen { onBack -> PdfScreen(onBack) }, ToolGroup.DOCUMENTS),
-        Feature("word", "Word", "Create & edit .docx", R.drawable.ic_tool_word, Sky, Opens.Screen { onBack -> WordScreen(onBack) }, ToolGroup.DOCUMENTS),
-        Feature("excel", "Excel", "Sheets, CSV & formulas", R.drawable.ic_tool_sheet, Mint, Opens.Screen { onBack -> SheetScreen(onBack) }, ToolGroup.DOCUMENTS),
-        Feature("notes", "Notes", "Lists, tags, lock", R.drawable.ic_tool_notes, Butter, Opens.Screen { onBack -> NotesScreen(onBack) }, ToolGroup.EVERYDAY),
-        Feature("photo", "Photo Enhancer", "HD, restore, colorize", R.drawable.ic_tool_photo, Coral, Opens.Screen { onBack -> PhotoScreen(onBack) }, ToolGroup.MEDIA),
+        Feature("pdfreader", "PDF Studio", "Read, edit, sign PDFs", R.drawable.ic_tool_reader, Coral, Opens.Screen { onBack, openTool -> PdfScreen(onBack, openTool) }, ToolGroup.DOCUMENTS),
+        Feature("word", "Word", "Create & edit .docx", R.drawable.ic_tool_word, Sky, Opens.Screen { onBack, _ -> WordScreen(onBack) }, ToolGroup.DOCUMENTS),
+        Feature("excel", "Excel", "Sheets, CSV & formulas", R.drawable.ic_tool_sheet, Mint, Opens.Screen { onBack, _ -> SheetScreen(onBack) }, ToolGroup.DOCUMENTS),
+        Feature("notes", "Notes", "Lists, tags, lock", R.drawable.ic_tool_notes, Butter, Opens.Screen { onBack, _ -> NotesScreen(onBack) }, ToolGroup.EVERYDAY),
+        Feature("photo", "Photo Enhancer", "HD, restore, colorize", R.drawable.ic_tool_photo, Coral, Opens.Screen { onBack, _ -> PhotoScreen(onBack) }, ToolGroup.MEDIA),
         Feature("assistant", "Assistant", "Help with app tools", R.drawable.ic_tool_assistant, Coral, Opens.Assistant(null), ToolGroup.APP),
         Feature("cleaner", "Phone Cleaner", "Remove bloatware", R.drawable.ic_tool_clean, Mint, Opens.Assistant(Act.Clean), ToolGroup.DEVICE),
-        Feature("files", "My Files", "Scans & PDFs", R.drawable.ic_folder, Mint, Opens.Screen { onBack -> FilesScreen(onBack) }, ToolGroup.DOCUMENTS),
+        Feature("files", "My Files", "Scans & PDFs", R.drawable.ic_folder, Mint, Opens.Screen { onBack, _ -> FilesScreen(onBack) }, ToolGroup.DOCUMENTS),
         Feature("weather", "Weather", "Today & 3 days", R.drawable.ic_tool_weather, Butter, Opens.Assistant(Act.Weather), ToolGroup.EVERYDAY),
         Feature("restore", "Restore Apps", "Undo removals", R.drawable.ic_tool_restore, Coral, Opens.Assistant(Act.Restore), ToolGroup.DEVICE),
-        Feature("about", "About & Privacy", BUILT_BY, R.drawable.ic_tool_info, Mint, Opens.Screen { onBack -> AboutScreen(onBack) }, ToolGroup.APP),
+        Feature("about", "About & Privacy", BUILT_BY, R.drawable.ic_tool_info, Mint, Opens.Screen { onBack, _ -> AboutScreen(onBack) }, ToolGroup.APP),
     )
 
     fun byId(id: String) = all.firstOrNull { it.id == id }

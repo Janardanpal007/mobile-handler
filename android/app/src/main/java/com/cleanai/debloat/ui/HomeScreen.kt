@@ -25,8 +25,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -49,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -97,7 +96,6 @@ fun HomeScreen(
     shizuku: ShizukuShell.State,
     onFeature: (Feature) -> Unit,
     onAsk: (String?) -> Unit,
-    onSettings: () -> Unit,
     onOpenDoc: (MyFiles.Doc) -> Unit,
     onGroup: (ToolGroup?) -> Unit,
 ) {
@@ -113,8 +111,9 @@ fun HomeScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Box(Modifier.enter(0)) { Header(name, onSettings, onSparky = { onAsk(null) }) } }
+        item { Box(Modifier.enter(0)) { Header(name, onSparky = { onAsk(null) }) } }
         item { Box(Modifier.enter(1)) { StatusChip(shizukuLabel(shizuku), shizukuDot(shizuku), background = Card, textColor = TextSecondary) } }
+        if (query.isBlank()) item { Box(Modifier.enter(2)) { AskCard { onAsk(null) } } }
         item {
             Box(Modifier.enter(2)) {
                 SearchField(query, { query = it }, onGo = {
@@ -199,7 +198,7 @@ internal fun searchTools(query: String): List<Feature> {
 }
 
 @Composable
-private fun Header(name: String, onSettings: () -> Unit, onSparky: () -> Unit) {
+private fun Header(name: String, onSparky: () -> Unit) {
     val hour = rememberHour()
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         SparkyPortrait(
@@ -217,8 +216,6 @@ private fun Header(name: String, onSettings: () -> Unit, onSparky: () -> Unit) {
             Text("What shall we do?", color = TextPrimary, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
         }
         ThemeButton()
-        Spacer(Modifier.width(8.dp))
-        RoundIconButton(Icons.Filled.Settings, "Settings", onSettings)
     }
 }
 
@@ -244,7 +241,7 @@ private fun ThemeButton() {
 }
 
 @Composable
-internal fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String = "Search tools or ask Sparky…", onGo: () -> Unit) {
+internal fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String = "Find a tool or ask anything…", onGo: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(CardHi)
             .border(1.dp, Line, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp),
@@ -258,7 +255,7 @@ internal fun SearchField(value: String, onChange: (String) -> Unit, placeholder:
                 value, onChange,
                 singleLine = true,
                 textStyle = TextStyle(color = TextPrimary, fontSize = 15.sp),
-                cursorBrush = SolidColor(Coral),
+                cursorBrush = SolidColor(Accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onGo() }),
                 modifier = Modifier.fillMaxWidth(),
@@ -280,7 +277,7 @@ internal fun SectionTitle(title: String, action: String?, onAction: (() -> Unit)
         if (action != null) {
             Text(
                 action,
-                color = if (onAction != null) Coral else TextSecondary,
+                color = if (onAction != null) Accent else TextSecondary,
                 fontSize = 13.sp,
                 fontWeight = if (onAction != null) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = if (onAction != null) Modifier.clip(RoundedCornerShape(8.dp)).bouncy(onClick = onAction).padding(horizontal = 6.dp, vertical = 8.dp) else Modifier,
@@ -325,7 +322,7 @@ private fun QuickAction(f: Feature, modifier: Modifier, onClick: () -> Unit, onL
 internal fun ToolRow(f: Feature, selected: Boolean = false, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (selected) Card else CardHi)
-            .border(1.dp, if (selected) Coral else Line, RoundedCornerShape(16.dp))
+            .border(1.dp, if (selected) Accent else Line, RoundedCornerShape(16.dp))
             .bouncy(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -334,6 +331,26 @@ internal fun ToolRow(f: Feature, selected: Boolean = false, onClick: () -> Unit)
         Column(Modifier.weight(1f)) {
             Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(f.subtitle, color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text("›", color = TextSecondary, fontSize = 22.sp)
+    }
+}
+
+/** The main way into the assistant: one big, friendly card. */
+@Composable
+private fun AskCard(onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(20.dp))
+            .bouncy(onClick = onClick).semantics(mergeDescendants = true) {}.padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.ic_tool_assistant), null, tint = Color.White, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Ask Sparky", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Scan a document, improve a photo, clean my phone…", color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text("›", color = TextSecondary, fontSize = 22.sp)
     }
@@ -366,7 +383,7 @@ private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit) {
             Text(doc.title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (doc.hasPdf) "PDF · ${doc.sizeText}" else "Photos · ${doc.sizeText}", color = TextSecondary, fontSize = 13.sp)
         }
-        Text("Open", color = Coral, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text("Open", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

@@ -122,7 +122,7 @@ fun SettingsScreen(
                 }
                 Divider()
                 SettingRow(
-                    icon = R.drawable.ic_tool_assistant, tint = Coral,
+                    icon = R.drawable.ic_tool_assistant, tint = Accent,
                     title = "Clear chat history",
                     subtitle = "Delete the whole conversation",
                     onClick = { vm.clearChat(); Toast.makeText(ctx, "Chat cleared", Toast.LENGTH_SHORT).show() },
@@ -166,7 +166,7 @@ fun SettingsScreen(
                 )
                 Divider()
                 SettingRow(
-                    icon = R.drawable.ic_tool_restore, tint = Coral,
+                    icon = R.drawable.ic_tool_restore, tint = Accent,
                     title = "Restore removed apps",
                     subtitle = "Undo anything you removed",
                     onClick = { onAct(Act.Restore, "Restore apps") },
@@ -230,7 +230,7 @@ private fun UpdatesGroup(index: Int) {
 
     Group(index) {
         SettingRow(
-            icon = R.drawable.ic_update, tint = if (available != null) Coral else Sky,
+            icon = R.drawable.ic_update, tint = if (available != null) Accent else Sky,
             title = if (available != null) "Version ${available.version} is available" else "Mobile Handler $installed",
             subtitle = when {
                 checking -> "Checking for a new version…"
@@ -249,7 +249,7 @@ private fun UpdatesGroup(index: Int) {
             )
         }
         Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (available != null) Pill("Download update", Coral, Color.White) { Updates.download(ctx, available) }
+            if (available != null) Pill("Download update", Accent, Color.White) { Updates.download(ctx, available) }
             Pill(if (checking) "Checking…" else "Check for updates", if (available != null) Card else Charcoal, if (available != null) TextPrimary else Color.White, enabled = !checking) {
                 checking = true
                 scope.launch { result = Updates.check(ctx); checking = false }

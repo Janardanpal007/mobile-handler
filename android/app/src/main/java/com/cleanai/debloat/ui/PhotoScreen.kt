@@ -154,7 +154,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                     }
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(72.dp).clip(CircleShape).background(Coral), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(72.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.ic_tool_photo), null, tint = Ink, modifier = Modifier.size(34.dp))
                         }
                         Spacer(Modifier.height(14.dp))
@@ -185,7 +185,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                                 color = if (on) Color.White.copy(alpha = 0.75f) else TextSecondary, fontSize = 14.sp,
                             )
                         }
-                        if (on) Text("✓", color = Coral, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        if (on) Text("✓", color = Accent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -200,10 +200,10 @@ fun PhotoScreen(onBack: () -> Unit) {
                         color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium,
                     )
                     LinearProgressIndicator(
-                        progress = { p }, color = Coral, trackColor = Line,
+                        progress = { p }, color = Accent, trackColor = Line,
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)),
                     )
-                    Btn("Cancel", Card, Coral) { job?.cancel(); progress = null }
+                    Btn("Cancel", Card, Accent) { job?.cancel(); progress = null }
                 }
                 mode == Mode.COLORIZE && !colorizeReady && d != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -211,7 +211,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                         color = TextPrimary, fontSize = 16.sp,
                     )
                     LinearProgressIndicator(
-                        progress = { d }, color = Coral, trackColor = Line,
+                        progress = { d }, color = Accent, trackColor = Line,
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)),
                     )
                 }
@@ -224,7 +224,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                 original == null -> Btn("Choose a photo", Charcoal, Color.White) {
                     pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
-                result == null -> Btn(mode.label, Coral, Color.White) { run() }
+                result == null -> Btn(mode.label, Accent, Color.White) { run() }
                 else -> {
                     val r = result!!
                     Text(
@@ -248,7 +248,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                                 ).show()
                             }
                         }
-                        Btn("Share", Coral, Color.White, Modifier.weight(1f)) {
+                        Btn("Share", Accent, Color.White, Modifier.weight(1f)) {
                             scope.launch {
                                 val doc = saved ?: withContext(Dispatchers.IO) { MyFiles.savePhoto(ctx, r) }.also { saved = it }
                                 MyFiles.shareImages(ctx, doc)

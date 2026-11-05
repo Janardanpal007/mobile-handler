@@ -44,7 +44,7 @@ fun Orb(modifier: Modifier, active: Boolean = false) {
         val r = size.minDimension / 2f
         drawCircle(
             Brush.radialGradient(
-                listOf(Coral.copy(alpha = 0.32f), Sage.copy(alpha = 0.10f), Color.Transparent),
+                listOf(Accent.copy(alpha = 0.32f), Sage.copy(alpha = 0.10f), Color.Transparent),
                 center = c, radius = r,
             ),
             radius = r, center = c,
@@ -56,8 +56,8 @@ fun Orb(modifier: Modifier, active: Boolean = false) {
                     drawCircle(
                         brush = Brush.sweepGradient(
                             listOf(
-                                Color.Transparent, Coral.copy(alpha = 0.95f), Sage.copy(alpha = 0.25f),
-                                Color.Transparent, Coral.copy(alpha = 0.6f), Color.Transparent,
+                                Color.Transparent, Accent.copy(alpha = 0.95f), Sage.copy(alpha = 0.25f),
+                                Color.Transparent, Accent.copy(alpha = 0.6f), Color.Transparent,
                             ),
                             center = c,
                         ),
@@ -70,7 +70,7 @@ fun Orb(modifier: Modifier, active: Boolean = false) {
         }
         drawCircle(
             Brush.radialGradient(
-                listOf(Coral.copy(alpha = 0.30f), Color.Transparent),
+                listOf(Accent.copy(alpha = 0.30f), Color.Transparent),
                 center = c, radius = r * 0.32f,
             ),
             radius = r * 0.32f, center = c,

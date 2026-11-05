@@ -87,3 +87,12 @@ All 15 features stay.
 - **Worth doing:** encrypt locked notes with Android Keystore (today the lock hides the note but the file isn't encrypted).
 - **Limits to keep in mind:** Private DNS needs Android 9+, so the Ad Blocker should say so on Android 8. ChatGPT's mention of Material 3 1.4.0 is unverified; we stay on the current version unless an upgrade is needed.
 - **Suggested order:** 1) theme + Home + bottom bar + Tools screen, 2) everyday tools (Calculator, QR, Scan, Notes, Files), 3) document tools, 4) Device + Photo Enhancer + Ask, 5) accessibility pass (large text, TalkBack, reduce motion).
+
+## Mobile Handler 2.0 brief (ChatGPT "Redesign Thoughts", 6 Nov 2026)
+ChatGPT reviewed the APK and a screen recording and wrote an Apple-inspired brief. What we took from it:
+- **Look:** neutral warm-white / deep-charcoal surfaces and one blue accent (#3478F6 family; we use #2A6BE4 on light and #4C8BFF on dark so small text stays readable), success green #30A46C. This replaces the coral "Sparky Flow" colours.
+- **Bottom bar:** Home · Tools · Files · Settings. The assistant opens from a big "Ask Sparky" card on Home, from Sparky, and from search.
+- **About:** Sparky, "Your phone. Simplified.", version and build number read from the app, website and source-code links, developer links, what's new, what each permission is for, open-source licences, privacy policy.
+- **PDF Studio** (ChatGPT's "Document Studio"; was "PDF Reader"): Open a PDF, Create (Scan, Photos → PDF, Word, Excel), the six PDF tools as tiles, recent PDFs with a filter. In the editor: **Find text** (⋮ menu) lists every line with the words and jumps to the page.
+- **Already there before the brief:** page thumbnails, rotate, reorder, delete and add pages; text editing; signatures, stamps, watermark, AES-256 password.
+- **Not done (needs real work, not faked):** OCR for scanned PDFs, true redaction, form filling, bookmarks, printing, PDF → images.

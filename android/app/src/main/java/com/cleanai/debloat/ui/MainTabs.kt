@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,8 +54,8 @@ import com.cleanai.debloat.features.Features
 import com.cleanai.debloat.features.ToolGroup
 
 /**
- * The app's main frame: Home and Tools tabs with the bottom bar (Home · Tools · Files · Ask).
- * Files and Ask open their own full screens.
+ * The app's main frame: Home and Tools tabs with the bottom bar (Home · Tools · Files · Settings).
+ * Files and Settings open their own full screens; the assistant opens from Home.
  */
 @Composable
 fun MainTabs(
@@ -71,7 +73,7 @@ fun MainTabs(
     Column(Modifier.fillMaxSize().background(Bg)) {
         Box(Modifier.weight(1f).statusBarsPadding()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "tab") { t ->
-                if (t == 0) HomeScreen(name, shizuku, onFeature, onAsk, onSettings, onOpenDoc, onGroup = { group = it; tab = 1 })
+                if (t == 0) HomeScreen(name, shizuku, onFeature, onAsk, onOpenDoc, onGroup = { group = it; tab = 1 })
                 else ToolsScreen(group, onFeature)
             }
         }
@@ -80,7 +82,7 @@ fun MainTabs(
             onHome = { tab = 0 },
             onTools = { group = null; tab = 1 },
             onFiles = onFiles,
-            onAsk = { onAsk(null) },
+            onSettings = onSettings,
         )
     }
 }
@@ -126,21 +128,21 @@ private fun ToolsScreen(start: ToolGroup?, onFeature: (Feature) -> Unit) {
 }
 
 @Composable
-private fun NavBar(selected: Int, onHome: () -> Unit, onTools: () -> Unit, onFiles: () -> Unit, onAsk: () -> Unit) {
+private fun NavBar(selected: Int, onHome: () -> Unit, onTools: () -> Unit, onFiles: () -> Unit, onSettings: () -> Unit) {
     Column(Modifier.fillMaxWidth().background(CardHi).navigationBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
             NavItem("Home", selected == 0, Modifier.weight(1f), onHome) { tint -> Icon(painterResource(R.drawable.ic_home), null, tint = tint, modifier = Modifier.size(24.dp)) }
             NavItem("Tools", selected == 1, Modifier.weight(1f), onTools) { tint -> Icon(painterResource(R.drawable.ic_grid), null, tint = tint, modifier = Modifier.size(24.dp)) }
             NavItem("Files", false, Modifier.weight(1f), onFiles) { tint -> Icon(painterResource(R.drawable.ic_folder), null, tint = tint, modifier = Modifier.size(24.dp)) }
-            NavItem("Ask", false, Modifier.weight(1f), onAsk) { _ -> SparkyPortrait(SparkyMood.AFTERNOON, Modifier.size(28.dp), animate = false) }
+            NavItem("Settings", false, Modifier.weight(1f), onSettings) { tint -> Icon(Icons.Filled.Settings, null, tint = tint, modifier = Modifier.size(24.dp)) }
         }
     }
 }
 
 @Composable
 private fun NavItem(label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit, icon: @Composable (androidx.compose.ui.graphics.Color) -> Unit) {
-    val tint = if (on) Coral else TextSecondary
+    val tint = if (on) Accent else TextSecondary
     Column(
         modifier.clip(RoundedCornerShape(16.dp)).bouncy(onClick = onClick)
             .semantics { role = Role.Tab; this.selected = on }

@@ -203,7 +203,7 @@ fun WordScreen(onBack: () -> Unit) {
             subtitle = (if (dirty) "Not saved · " else "") + "${words(blocks)} words",
             action = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PillButton("Save", Coral, Color.White) { save() }
+                    PillButton("Save", Accent, Color.White) { save() }
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
@@ -400,7 +400,7 @@ private fun ParagraphEditor(
                 b.value,
                 onChange,
                 textStyle = style,
-                cursorBrush = SolidColor(Coral),
+                cursorBrush = SolidColor(Accent),
                 modifier = modifier.fillMaxWidth().onPreviewKeyEvent { e ->
                     if (e.type == KeyEventType.KeyDown && e.key == Key.Backspace && b.value.selection == TextRange(0)) {
                         onBackspaceAtStart(); true

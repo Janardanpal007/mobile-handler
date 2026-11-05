@@ -213,6 +213,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     var signing by remember { mutableStateOf(false) }
     var stamping by remember { mutableStateOf(false) }
     var showPages by remember { mutableStateOf(false) }
+    var finding by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
@@ -337,6 +338,12 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
         return
     }
 
+    val findIn = state
+    val findWith = session
+    if (finding && findIn != null && findWith != null) {
+        FindTextDialog(findIn, findWith, onGo = { page -> finding = false; scope.launch { list.animateScrollToItem(page) } }, onClose = { finding = false })
+    }
+
     Column(Modifier.fillMaxSize().background(Color(0xFF2A2F2C)).systemBarsPadding()) {
         // ---- top bar
         Row(
@@ -355,10 +362,11 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
             BarButton("↶", enabled = at > 0) { at--; selected = null }
             BarButton("↷", enabled = at < history.lastIndex) { at++; selected = null }
             Spacer(Modifier.width(6.dp))
-            PillButton("Save", if (dirty) Coral else Card, if (dirty) Color.White else TextSecondary, enabled = dirty && busy == null) { save(null) }
+            PillButton("Save", if (dirty) Accent else Card, if (dirty) Color.White else TextSecondary, enabled = dirty && busy == null) { save(null) }
             Box {
                 BarButton("⋮") { menu = true }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Find text") }, onClick = { menu = false; finding = true })
                     DropdownMenuItem(text = { Text("Pages: rotate, reorder, delete") }, onClick = { menu = false; showPages = true })
                     DropdownMenuItem(text = { Text("Save as a copy…") }, onClick = { menu = false; saveCopy.launch(name.removeSuffix(".pdf") + " (edited).pdf") })
                     DropdownMenuItem(text = { Text("Share") }, onClick = { menu = false; sharePdf(ctx, fileUri) })
@@ -372,7 +380,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
         if (s == null || sess == null) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 openError?.let { Text(it, color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(24.dp)) }
-                    ?: CircularProgressIndicator(color = Coral)
+                    ?: CircularProgressIndicator(color = Accent)
             }
         } else {
             var scale by remember { mutableStateOf(1f) }
@@ -788,7 +796,7 @@ private fun EditorPage(
             },
     ) {
         bitmaps[page.id]?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize()) }
-            ?: CircularProgressIndicator(Modifier.align(Alignment.Center).size(28.dp), color = Coral, strokeWidth = 2.dp)
+            ?: CircularProgressIndicator(Modifier.align(Alignment.Center).size(28.dp), color = Accent, strokeWidth = 2.dp)
         Canvas(Modifier.fillMaxSize()) {
             if (tool == Tool.EDIT_TEXT) lines[page.id]?.forEach { line ->
                 drawRect(
@@ -809,13 +817,13 @@ private fun EditorPage(
                 val b = sel.bounds
                 val pad = 4.dp.toPx()
                 drawRect(
-                    Coral, topLeft = Offset(b.l * size.width - pad, b.t * size.height - pad),
+                    Accent, topLeft = Offset(b.l * size.width - pad, b.t * size.height - pad),
                     size = Size(b.w * size.width + 2 * pad, b.h * size.height + 2 * pad),
                     style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))),
                 )
                 if (sel !is TextEditItem) {
                     drawCircle(Color.White, 11.dp.toPx(), Offset(b.r * size.width, b.b * size.height))
-                    drawCircle(Coral, 8.dp.toPx(), Offset(b.r * size.width, b.b * size.height))
+                    drawCircle(Accent, 8.dp.toPx(), Offset(b.r * size.width, b.b * size.height))
                 }
             }
         }
@@ -1241,7 +1249,7 @@ private fun BarButton(label: String, enabled: Boolean = true, onClick: () -> Uni
 @Composable
 private fun ToolButton(icon: String, label: String, on: Boolean, onClick: () -> Unit) {
     Column(
-        Modifier.width(66.dp).clip(RoundedCornerShape(14.dp)).background(if (on) Coral else Color.Transparent).clickable(onClick = onClick).padding(vertical = 6.dp),
+        Modifier.width(66.dp).clip(RoundedCornerShape(14.dp)).background(if (on) Accent else Color.Transparent).clickable(onClick = onClick).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(icon, color = if (on) Color.White else TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
@@ -1253,14 +1261,14 @@ private fun ToolButton(icon: String, label: String, on: Boolean, onClick: () -> 
 private fun Chip(label: String, on: Boolean = false, danger: Boolean = false, onClick: () -> Unit) {
     Box(
         Modifier.clip(RoundedCornerShape(50)).background(if (on) Charcoal else Card).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
-    ) { Text(label, color = if (on) Color.White else if (danger) Coral else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
+    ) { Text(label, color = if (on) Color.White else if (danger) Accent else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
 }
 
 @Composable
 private fun Swatch(color: Int, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier.size(30.dp).clip(CircleShape).background(Color(color))
-            .border(if (selected) 3.dp else 1.dp, if (selected) Coral else Line, CircleShape).clickable(onClick = onClick),
+            .border(if (selected) 3.dp else 1.dp, if (selected) Accent else Line, CircleShape).clickable(onClick = onClick),
     )
 }
 

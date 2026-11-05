@@ -243,7 +243,7 @@ fun SheetScreen(onBack: () -> Unit) {
             subtitle = if (dirty) "Not saved" else if (csv) "CSV" else "Excel",
             action = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PillButton("Save", Coral, Color.White) { commit(); save() }
+                    PillButton("Save", Accent, Color.White) { commit(); save() }
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
@@ -265,13 +265,13 @@ fun SheetScreen(onBack: () -> Unit) {
             Modifier.fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(12.dp)).background(CardHi).padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(selected.name, color = Coral, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(52.dp))
+            Text(selected.name, color = Accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(52.dp))
             BasicTextField(
                 draft,
                 { draft = it },
                 singleLine = true,
                 textStyle = TextStyle(color = TextPrimary, fontSize = 17.sp),
-                cursorBrush = SolidColor(Coral),
+                cursorBrush = SolidColor(Accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(onNext = {
                     // Like Excel's Enter: keep it and move down.
@@ -364,7 +364,7 @@ private fun GridCell(raw: String?, shown: String, selected: Boolean, onClick: ()
     val error = shown.startsWith("#")
     Box(
         Modifier.size(CellW, CellH).background(Color.White)
-            .border(if (selected) 2.dp else 0.5.dp, if (selected) Coral else Color(0xFFE0E0DC))
+            .border(if (selected) 2.dp else 0.5.dp, if (selected) Accent else Color(0xFFE0E0DC))
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp),
         contentAlignment = if (number && !error) Alignment.CenterEnd else Alignment.CenterStart,

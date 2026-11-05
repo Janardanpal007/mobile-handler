@@ -89,7 +89,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 
-private enum class PdfTool(val title: String, val blurb: String) {
+internal enum class PdfTool(val title: String, val blurb: String) {
     MERGE("Merge PDFs", "Join several PDFs into one"),
     EXTRACT("Extract pages", "Split out the pages you need"),
     REMOVE("Remove pages", "Delete pages you don't want"),
@@ -109,9 +109,12 @@ object PdfLaunch {
     fun take(): Uri? = pending.also { pending = null }
 }
 
-/** PDF Reader & Editor: read with pinch-zoom, draw / highlight / add text, merge, split, remove pages and compress. */
+/**
+ * Document Studio: open and edit PDFs (read, find text, draw, highlight, sign), the PDF tools (merge, split, compress, …)
+ * and shortcuts to the tools that create documents. [openTool] opens another feature by id.
+ */
 @Composable
-fun PdfScreen(onBack: () -> Unit) {
+fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var open by remember { mutableStateOf(PdfLaunch.take()) }
@@ -179,7 +182,7 @@ fun PdfScreen(onBack: () -> Unit) {
 
     BackHandler(enabled = tool != null) { tool = null; merging.clear() }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
-        ScreenTopBar("PDF Reader & Editor", onBack = { if (tool != null) { tool = null; merging.clear() } else onBack() })
+        ScreenTopBar(if (tool == PdfTool.MERGE) "Merge PDFs" else "PDF Studio", onBack = { if (tool != null) { tool = null; merging.clear() } else onBack() })
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -205,21 +208,12 @@ fun PdfScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
-                BigAction("Open a PDF", "Edit text, sign, add pictures, highlight and more") { choose(null) }
-                Text("Tools", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-                PdfTool.entries.forEach { t ->
-                    ToolRow(t.title, t.blurb) {
-                        if (t == PdfTool.MERGE) merging.clear()
-                        choose(t)
-                    }
-                }
-                if (mine.isNotEmpty()) {
-                    Text("Your PDFs in My Files", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-                    mine.take(20).forEach { doc -> ToolRow(doc.title, doc.sizeText) { open = Uri.fromFile(doc.pdf) } }
-                }
-                Text(
-                    "Everything happens on your phone — your PDFs are never uploaded.",
-                    color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp),
+                StudioHome(
+                    mine = mine,
+                    onOpenPdf = { choose(null) },
+                    onTool = { t -> if (t == PdfTool.MERGE) merging.clear(); choose(t) },
+                    onCreate = openTool,
+                    onDoc = { doc -> open = Uri.fromFile(doc.pdf) },
                 )
             }
         }
@@ -265,7 +259,7 @@ fun PdfScreen(onBack: () -> Unit) {
                             WatermarkColors.forEach { c ->
                                 Box(
                                     Modifier.size(30.dp).clip(CircleShape).background(Color(c))
-                                        .border(if (c == markColor) 3.dp else 0.dp, Coral, CircleShape).clickable { markColor = c },
+                                        .border(if (c == markColor) 3.dp else 0.dp, Accent, CircleShape).clickable { markColor = c },
                                 )
                             }
                         }
@@ -296,7 +290,7 @@ fun PdfScreen(onBack: () -> Unit) {
                                 locked -> "You'll get a copy that opens without a password. The original stays locked."
                                 else -> "You'll get a locked copy. Keep the password safe: Mobile Handler doesn't store it, and without it the PDF can't be opened."
                             },
-                            color = if (wrongPassword) Coral else TextSecondary, fontSize = 13.sp,
+                            color = if (wrongPassword) Accent else TextSecondary, fontSize = 13.sp,
                         )
                     } else if (t == PdfTool.COMPRESS) {
                         Text(
@@ -454,7 +448,7 @@ internal fun BusyDialog(message: String) {
         confirmButton = {},
         text = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(26.dp), color = Coral, strokeWidth = 3.dp)
+                CircularProgressIndicator(Modifier.size(26.dp), color = Accent, strokeWidth = 3.dp)
                 Spacer(Modifier.width(16.dp))
                 Text(message)
             }

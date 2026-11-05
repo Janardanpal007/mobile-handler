@@ -53,7 +53,7 @@ Also present: first-run profile (name, age, place), Settings (theme, Private mod
 
 ## Licences
 
-Real-ESRGAN (BSD-3), DDColor (Apache-2.0), PdfBox-Android (Apache-2.0), JUnit (EPL-1.0, tests only), kXML2 (BSD, tests only), Shizuku API (Apache-2.0), LiteRT (Apache-2.0), AndroidX/Compose (Apache-2.0). ML Kit scanners are free but closed-source Google Play services components.
+Real-ESRGAN (BSD-3), DDColor (Apache-2.0), PdfBox-Android (Apache-2.0), JUnit (EPL-1.0, tests only), kXML2 (BSD, tests only), Shizuku API (MIT), LiteRT (Apache-2.0), AndroidX/Compose (Apache-2.0). ML Kit scanners are free but closed-source Google Play services components.
 
 ## Changes in v1.7 (this update)
 
