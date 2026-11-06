@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,7 +64,11 @@ internal class StudioActions(
     val openTool: (String) -> Unit,
     val openDoc: (MyFiles.Doc) -> Unit,
     val showAllTools: () -> Unit,
+    val deleteDoc: (MyFiles.Doc) -> Unit,
 )
+
+/** One tool on the All tools page: a round icon, its name and what it does. */
+internal class ToolEntry(val label: String, val detail: String, @DrawableRes val icon: Int, val tint: Color, val onClick: () -> Unit)
 
 private const val GRID_COLUMNS = 4
 private const val RECENT_SHOWN = 4
@@ -77,26 +85,26 @@ private fun pdfTiles(a: StudioActions) = listOf(
     StudioTile("All tools", R.drawable.ic_grid, Sky) { a.showAllTools() },
 )
 
-/** Every studio tool, grouped, for the All tools page. */
+/** Every studio tool, grouped by what you want to do, for the All tools page. */
 private fun allToolGroups(a: StudioActions) = listOf(
     "Edit & sign" to listOf(
-        StudioTile("Edit", R.drawable.ic_edit, Sky) { a.openPdf(EditorStart.READ) },
-        StudioTile("Sign", R.drawable.ic_sign, Butter) { a.openPdf(EditorStart.SIGN) },
-        StudioTile("Stamp", R.drawable.ic_stamp, CoralTint) { a.openPdf(EditorStart.STAMP) },
+        ToolEntry("Edit", "Change text, draw, highlight, add pictures", R.drawable.ic_edit, Sky) { a.openPdf(EditorStart.READ) },
+        ToolEntry("Sign", "Add your signature to a page", R.drawable.ic_sign, Butter) { a.openPdf(EditorStart.SIGN) },
+        ToolEntry("Stamp", "Approved, Paid, Draft and more", R.drawable.ic_stamp, CoralTint) { a.openPdf(EditorStart.STAMP) },
     ),
-    "Organize" to listOf(
-        StudioTile("Merge", R.drawable.ic_merge, Mint) { a.pdfTool(PdfTool.MERGE) },
-        StudioTile("Split", R.drawable.ic_split, Butter) { a.pdfTool(PdfTool.EXTRACT) },
-        StudioTile("Remove pages", R.drawable.ic_pages, CoralTint) { a.pdfTool(PdfTool.REMOVE) },
+    "Pages" to listOf(
+        ToolEntry("Merge", PdfTool.MERGE.blurb, R.drawable.ic_merge, Mint) { a.pdfTool(PdfTool.MERGE) },
+        ToolEntry("Split", PdfTool.EXTRACT.blurb, R.drawable.ic_split, Butter) { a.pdfTool(PdfTool.EXTRACT) },
+        ToolEntry("Remove pages", PdfTool.REMOVE.blurb, R.drawable.ic_pages, CoralTint) { a.pdfTool(PdfTool.REMOVE) },
     ),
     "Protect & share" to listOf(
-        StudioTile("Compress", R.drawable.ic_compress, CoralTint) { a.pdfTool(PdfTool.COMPRESS) },
-        StudioTile("Watermark", R.drawable.ic_watermark, Sky) { a.pdfTool(PdfTool.WATERMARK) },
-        StudioTile("Password", R.drawable.ic_lock, Butter) { a.pdfTool(PdfTool.PASSWORD) },
+        ToolEntry("Compress", PdfTool.COMPRESS.blurb, R.drawable.ic_compress, CoralTint) { a.pdfTool(PdfTool.COMPRESS) },
+        ToolEntry("Watermark", PdfTool.WATERMARK.blurb, R.drawable.ic_watermark, Sky) { a.pdfTool(PdfTool.WATERMARK) },
+        ToolEntry("Password", PdfTool.PASSWORD.blurb, R.drawable.ic_lock, Butter) { a.pdfTool(PdfTool.PASSWORD) },
     ),
-    "Create" to listOf(
-        StudioTile("Scan", R.drawable.ic_tool_doc, Mint) { a.openTool("docscan") },
-        StudioTile("Photos to PDF", R.drawable.ic_tool_pdf, Sky) { a.openTool("pdf") },
+    "Create a PDF" to listOf(
+        ToolEntry("Scan", "Use the camera to scan paper pages", R.drawable.ic_tool_doc, Mint) { a.openTool("docscan") },
+        ToolEntry("Photos to PDF", "Turn pictures from your gallery into a PDF", R.drawable.ic_tool_pdf, Sky) { a.openTool("pdf") },
     ),
 )
 
@@ -109,19 +117,48 @@ internal fun StudioHome(mine: List<MyFiles.Doc>, actions: StudioActions) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OpenCard("Open a PDF", "Read, find text, edit and sign", R.drawable.ic_tool_reader) { actions.openPdf(EditorStart.READ) }
         TileGrid(pdfTiles(actions))
-        RecentFiles(mine, actions.openDoc)
+        RecentFiles(mine, actions.openDoc, actions.deleteDoc)
         Note("Everything happens on your phone — your documents are never uploaded.")
     }
 }
 
-/** The All tools page: every studio tool, grouped. */
+/** The All tools page: every studio tool in a card for its group, each with a line on what it does. */
 @Composable
 internal fun StudioAllTools(actions: StudioActions) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 24.dp)) {
-        allToolGroups(actions).forEach { (title, tiles) ->
-            Text(title, color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-            TileGrid(tiles)
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)) {
+        allToolGroups(actions).forEach { (title, entries) -> ToolGroupCard(title, entries) }
+    }
+}
+
+@Composable
+private fun ToolGroupCard(title: String, entries: List<ToolEntry>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(20.dp))) {
+            entries.forEachIndexed { i, e ->
+                if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 72.dp).height(1.dp).background(Line))
+                ToolEntryRow(e)
+            }
         }
+    }
+}
+
+@Composable
+private fun ToolEntryRow(e: ToolEntry) {
+    Row(
+        Modifier.fillMaxWidth().bouncy(onClick = e.onClick).semantics(mergeDescendants = true) { role = Role.Button }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(e.tint), contentAlignment = Alignment.Center) {
+            Icon(painterResource(e.icon), null, tint = Ink, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(e.label, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(e.detail, color = TextSecondary, fontSize = 13.sp, maxLines = 2, lineHeight = 17.sp)
+        }
+        Text("›", color = TextSecondary, fontSize = 22.sp)
     }
 }
 
@@ -174,8 +211,9 @@ internal fun RoundTile(tile: StudioTile, modifier: Modifier) {
 
 /** PDFs saved in My Files with a small picture of their first page; a filter once there are more than a few. */
 @Composable
-private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit) {
+private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit, onDelete: (MyFiles.Doc) -> Unit) {
     var filter by rememberSaveable { mutableStateOf("") }
+    var deleting by remember { mutableStateOf<MyFiles.Doc?>(null) }
     var all by rememberSaveable { mutableStateOf(false) }
     val shown = remember(mine, filter) { if (filter.isBlank()) mine else mine.filter { it.title.contains(filter.trim(), ignoreCase = true) } }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
@@ -196,12 +234,21 @@ private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit) {
         return
     }
     if (mine.size > RECENT_SHOWN) SearchField(filter, { filter = it }, placeholder = "Search your files…", onGo = {})
-    (if (all) shown else shown.take(RECENT_SHOWN)).forEach { doc -> RecentRow(doc) { onDoc(doc) } }
+    (if (all) shown else shown.take(RECENT_SHOWN)).forEach { doc -> RecentRow(doc, onClick = { onDoc(doc) }, onDelete = { deleting = doc }) }
+    deleting?.let { doc ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete this file?") },
+            text = { Text("\u201C${doc.title}\u201D will be removed from your phone. This can't be undone.") },
+            confirmButton = { TextButton(onClick = { onDelete(doc); deleting = null }) { Text("Delete", color = Red) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+        )
+    }
     if (shown.isEmpty()) Note("No file matches “${filter.trim()}”.")
 }
 
 @Composable
-private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit) {
+private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit, onDelete: () -> Unit) {
     val thumb by produceState<Bitmap?>(null, doc.pdf) { value = firstPageThumb(doc.pdf) }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(16.dp))
@@ -216,7 +263,9 @@ private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit) {
             Text(doc.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("PDF · ${doc.sizeText}", color = TextSecondary, fontSize = 12.sp)
         }
-        Text("›", color = TextSecondary, fontSize = 22.sp)
+        Box(Modifier.size(40.dp).clip(CircleShape).bouncy(onClick = onDelete), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete ${doc.title}", tint = TextSecondary, modifier = Modifier.size(20.dp))
+        }
     }
 }
 

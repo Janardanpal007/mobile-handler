@@ -157,7 +157,7 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
         if (uris.isNotEmpty()) { merging.addAll(uris); tool = PdfTool.MERGE }
     }
     // Scans and photo PDFs already in My Files can be used straight away, without the file browser.
-    val mine = remember { MyFiles.list(ctx).filter { it.hasPdf } }
+    var mine by remember { mutableStateOf(MyFiles.list(ctx).filter { it.hasPdf }) }
     var choosing by remember { mutableStateOf(false) }
 
     fun choose(t: PdfTool?) {
@@ -196,6 +196,10 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
         openTool = openTool,
         openDoc = { doc -> startWith = EditorStart.READ; open = Uri.fromFile(doc.pdf) },
         showAllTools = { allTools = true },
+        deleteDoc = { doc ->
+            if (!MyFiles.delete(doc)) Toast.makeText(ctx, "Couldn't delete this file.", Toast.LENGTH_SHORT).show()
+            mine = MyFiles.list(ctx).filter { it.hasPdf }
+        },
     )
     BackHandler(enabled = tool != null || allTools) { back() }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
