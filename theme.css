@@ -283,3 +283,39 @@ html[data-theme="dark"] .peek-crop {
   mix-blend-mode: normal;
   opacity: .92;
 }
+
+/* Secondary call to action (outlined), used for the hero APK download */
+.button-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.button-secondary:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+html[data-theme="dark"] .button-secondary:hover {
+  background: #dfe9d2;
+  color: #15211b;
+}
+
+/* Keep the brand on one line next to the theme and download buttons on phones */
+@media (max-width: 760px) {
+  header .brand {
+    white-space: nowrap;
+    gap: 9px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 760px) {
+  header > .button {
+    white-space: nowrap;
+  }
+
+  header .brand {
+    font-size: 14px;
+  }
+}
