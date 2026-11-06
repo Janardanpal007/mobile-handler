@@ -155,6 +155,9 @@ private data class TextJob(val page: PageRef, val at: NPoint?, val item: TextBox
 /** Editing words already on the page: the line found under the finger, or an earlier edit. */
 private data class LineJob(val page: PageRef, val item: TextEditItem)
 
+/** What the editor does once a PDF is open: just show it, or go straight to signing or stamping. */
+enum class EditorStart { READ, SIGN, STAMP }
+
 /**
  * The PDF editor: pages scroll like a reader, and the tools work right on the page.
  * Edit existing text, add text, draw, highlight / underline / strike text, shapes, signatures and pictures;
@@ -162,7 +165,7 @@ private data class LineJob(val page: PageRef, val item: TextEditItem)
  * Save writes back to the same file (or a copy).
  */
 @Composable
-fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
+fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = EditorStart.READ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -214,6 +217,8 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     var stamping by remember { mutableStateOf(false) }
     var showPages by remember { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
+    // Opened from PDF Studio's Sign or Stamp: show that tool once the pages are ready.
+    var startDone by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
@@ -336,6 +341,16 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit) {
     if (showPages && state != null && session != null) {
         PagesSheet(state, session!!, onChange = { push(it); selected = null }, onClose = { showPages = false })
         return
+    }
+
+    LaunchedEffect(state != null) {
+        if (state == null || startDone) return@LaunchedEffect
+        startDone = true
+        when (startWith) {
+            EditorStart.SIGN -> signing = true
+            EditorStart.STAMP -> stamping = true
+            EditorStart.READ -> Unit
+        }
     }
 
     val findIn = state

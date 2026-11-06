@@ -33,7 +33,10 @@ private const val PROFILE = "profile"
 @Composable
 fun AppRoot(vm: AgentViewModel) {
     var screen by rememberSaveable { mutableStateOf(HOME) }
-    val goHome = { screen = HOME }
+    // A tool opened from inside another tool (Word from PDF Studio) goes back to that tool, not Home.
+    var cameFrom by rememberSaveable { mutableStateOf<String?>(null) }
+    val goHome = { cameFrom = null; screen = HOME }
+    val goBack = { screen = cameFrom ?: HOME; cameFrom = null }
     // The opening animation plays once per launch, not after rotating the phone.
     var intro by rememberSaveable { mutableStateOf(true) }
     var closing by remember { mutableStateOf(false) }
@@ -45,7 +48,7 @@ fun AppRoot(vm: AgentViewModel) {
     LaunchedEffect(vm.openScreen) {
         vm.openScreen?.let { screen = it; vm.screenOpened() }
     }
-    BackHandler(enabled = screen != HOME) { goHome() }
+    BackHandler(enabled = screen != HOME) { goBack() }
     // Back on Home closes the app with its own animation instead of a plain cut.
     BackHandler(enabled = screen == HOME && !closing && vm.profileDone) { closing = true }
 
@@ -69,7 +72,7 @@ fun AppRoot(vm: AgentViewModel) {
                     transitionSpec = { depthTransition(HOME) },
                     label = "screens",
                 ) { s ->
-                    Box(Modifier.fillMaxSize().background(Bg)) { Screen(s, vm, go = { screen = it }, goHome = goHome, onIntro = { f, open -> splash = f to open }) }
+                    Box(Modifier.fillMaxSize().background(Bg)) { Screen(s, vm, go = { screen = it }, goHome = goHome, goBack = goBack, fromTool = { cameFrom = s }, onIntro = { f, open -> splash = f to open }) }
                 }
             }
         }
@@ -80,7 +83,15 @@ fun AppRoot(vm: AgentViewModel) {
 }
 
 @Composable
-private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goHome: () -> Unit, onIntro: (Feature, open: () -> Unit) -> Unit) {
+private fun Screen(
+    screen: String,
+    vm: AgentViewModel,
+    go: (String) -> Unit,
+    goHome: () -> Unit,
+    goBack: () -> Unit,
+    fromTool: () -> Unit,
+    onIntro: (Feature, open: () -> Unit) -> Unit,
+) {
     // The tool opens behind its colour intro, once the colour covers the screen.
     val openFeature: (Feature) -> Unit = { f ->
         onIntro(f) {
@@ -123,7 +134,7 @@ private fun Screen(screen: String, vm: AgentViewModel, go: (String) -> Unit, goH
         )
         else -> {
             val content = (Features.byId(screen)?.opens as? Opens.Screen)?.content
-            if (content != null) content(goHome) { id -> Features.byId(id)?.let(openFeature) } else LaunchedEffect(screen) { goHome() }
+            if (content != null) content(goBack) { id -> Features.byId(id)?.let { fromTool(); openFeature(it) } } else LaunchedEffect(screen) { goHome() }
         }
     }
 }

@@ -35,6 +35,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -162,6 +163,20 @@ fun SheetScreen(onBack: () -> Unit) {
         }
     }
 
+    fun newSheet() {
+        uri = null; name = "Spreadsheet.xlsx"; csv = false
+        load(listOf(SheetData("Sheet1", emptyMap())))
+    }
+    fun openSheet() = open.launch(arrayOf(XLSX, "text/csv", "text/comma-separated-values", "text/plain", "application/octet-stream"))
+    // Sent here from PDF Studio for one job: do it straight away.
+    LaunchedEffect(Unit) {
+        when (ToolStart.take("excel")) {
+            ToolStart.Action.NEW -> newSheet()
+            ToolStart.Action.OPEN -> openSheet()
+            null -> Unit
+        }
+    }
+
     if (!editing) {
         Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
             ScreenTopBar("Excel", onBack)
@@ -169,13 +184,8 @@ fun SheetScreen(onBack: () -> Unit) {
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                BigAction("New spreadsheet", "Rows, columns and formulas") {
-                    uri = null; name = "Spreadsheet.xlsx"; csv = false
-                    load(listOf(SheetData("Sheet1", emptyMap())))
-                }
-                ToolRow("Open a spreadsheet", "Excel .xlsx or .csv from your phone, Drive or Downloads") {
-                    open.launch(arrayOf(XLSX, "text/csv", "text/comma-separated-values", "text/plain", "application/octet-stream"))
-                }
+                BigAction("New spreadsheet", "Rows, columns and formulas") { newSheet() }
+                ToolRow("Open a spreadsheet", "Excel .xlsx or .csv from your phone, Drive or Downloads") { openSheet() }
                 Text(
                     "Formulas: + − * / ^ %, cell references like A1 and ranges like A1:B9, and SUM, AVERAGE, MIN, MAX, COUNT, PRODUCT, IF, AND, OR, ROUND, ABS, SQRT, POWER, MOD. " +
                         "Saved .xlsx files open in Excel, Google Sheets and LibreOffice. Colours, charts and merged cells in a file you open are not kept.",

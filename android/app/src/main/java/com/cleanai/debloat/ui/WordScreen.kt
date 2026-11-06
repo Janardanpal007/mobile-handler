@@ -172,6 +172,20 @@ fun WordScreen(onBack: () -> Unit) {
         }
     }
 
+    fun newDocument() {
+        uri = null; name = "Document.docx"; lost = false
+        load(listOf(Docx.Para(listOf(Docx.Run("")), Docx.Style.TITLE), Docx.Para(listOf(Docx.Run("")))))
+    }
+    fun openDocument() = open.launch(arrayOf(DOCX, "application/octet-stream"))
+    // Sent here from PDF Studio for one job: do it straight away.
+    LaunchedEffect(Unit) {
+        when (ToolStart.take("word")) {
+            ToolStart.Action.NEW -> newDocument()
+            ToolStart.Action.OPEN -> openDocument()
+            null -> Unit
+        }
+    }
+
     if (!editing) {
         Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
             ScreenTopBar("Word", onBack)
@@ -179,11 +193,8 @@ fun WordScreen(onBack: () -> Unit) {
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                BigAction("New document", "Start writing a Word file") {
-                    uri = null; name = "Document.docx"; lost = false
-                    load(listOf(Docx.Para(listOf(Docx.Run("")), Docx.Style.TITLE), Docx.Para(listOf(Docx.Run("")))))
-                }
-                ToolRow("Open a Word file", "Edit a .docx from your phone, Drive or Downloads") { open.launch(arrayOf(DOCX, "application/octet-stream")) }
+                BigAction("New document", "Start writing a Word file") { newDocument() }
+                ToolRow("Open a Word file", "Edit a .docx from your phone, Drive or Downloads") { openDocument() }
                 Text(
                     "Keeps headings, lists, alignment and bold / italic / underline. Saved files open in Microsoft Word, Google Docs and LibreOffice. " +
                         "Pictures and tables in a file you open are not kept when you save.",

@@ -56,6 +56,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -118,6 +119,8 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var open by remember { mutableStateOf(PdfLaunch.take()) }
+    var startWith by remember { mutableStateOf(EditorStart.READ) }
+    var allTools by rememberSaveable { mutableStateOf(false) }
     var tool by remember { mutableStateOf<PdfTool?>(null) }
     var source by remember { mutableStateOf<Uri?>(null) }
     val merging = remember { mutableStateListOf<Uri>() }
@@ -176,13 +179,31 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
     }
 
     open?.let { uri ->
-        PdfEditorScreen(uri, onClose = { open = null })
+        PdfEditorScreen(uri, onClose = { open = null; startWith = EditorStart.READ }, startWith = startWith)
         return
     }
 
-    BackHandler(enabled = tool != null) { tool = null; merging.clear() }
+    fun back() {
+        when {
+            tool != null -> { tool = null; merging.clear() }
+            allTools -> allTools = false
+            else -> onBack()
+        }
+    }
+    val actions = StudioActions(
+        openPdf = { start -> startWith = start; choose(null) },
+        pdfTool = { t -> if (t == PdfTool.MERGE) merging.clear(); choose(t) },
+        openTool = openTool,
+        startTool = { id, action -> ToolStart.set(id, action); openTool(id) },
+        openDoc = { doc -> startWith = EditorStart.READ; open = Uri.fromFile(doc.pdf) },
+        showAllTools = { allTools = true },
+    )
+    BackHandler(enabled = tool != null || allTools) { back() }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
-        ScreenTopBar(if (tool == PdfTool.MERGE) "Merge PDFs" else "PDF Studio", onBack = { if (tool != null) { tool = null; merging.clear() } else onBack() })
+        ScreenTopBar(
+            when { tool == PdfTool.MERGE -> "Merge PDFs"; allTools -> "All tools"; else -> "PDF Studio" },
+            onBack = { back() },
+        )
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -208,13 +229,7 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
                     }
                 }
             } else {
-                StudioHome(
-                    mine = mine,
-                    onOpenPdf = { choose(null) },
-                    onTool = { t -> if (t == PdfTool.MERGE) merging.clear(); choose(t) },
-                    onCreate = openTool,
-                    onDoc = { doc -> open = Uri.fromFile(doc.pdf) },
-                )
+                if (allTools) StudioAllTools(actions) else StudioHome(mine, actions)
             }
         }
     }
