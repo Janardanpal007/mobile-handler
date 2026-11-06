@@ -7,14 +7,14 @@
 <p align="center">
   One private Android app to clean, protect and handle your phone.<br>
   <a href="https://janardanpal007.github.io/mobile-handler/"><b>Website</b></a> ·
-  <a href="https://github.com/Janardanpal007/mobile-handler/releases/latest/download/MobileHandler.apk"><b>Download APK</b></a> ·
+  <a href="https://janardanpal007.github.io/mobile-handler/downloads/MobileHandler.apk"><b>Download APK</b></a> ·
   <a href="https://github.com/Janardanpal007/mobile-handler/releases"><b>All releases</b></a>
 </p>
 
 <p align="center">
   <img alt="Version" src="https://img.shields.io/github/v/release/Janardanpal007/mobile-handler?label=version&color=D65F4E">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-A8CDA0">
-  <img alt="Size" src="https://img.shields.io/badge/APK-50%20MB-A5C8DB">
+  <img alt="Size" src="https://img.shields.io/badge/APK-51%20MB-A5C8DB">
   <img alt="Free" src="https://img.shields.io/badge/price-free-D8C966">
 </p>
 
@@ -29,16 +29,20 @@
 | 03 | **Photo Enhancer** | Makes photos HD (4× resolution), restores old pictures and colorizes black & white ones, on the phone, with open-source AI. |
 | 04 | **Scan Document & Scan QR** | Turns paper into clean PDFs and reads any QR code (links, Wi-Fi, text). **Photos → PDF** combines images into one PDF. |
 | 05 | **Office tools** | **PDF Editor** (edit existing text, saved signatures, stamps, pictures, text, shapes and highlights, rotate/reorder pages, merge, split, compress, watermark, password lock and unlock), **Word** (.docx) and **Excel** (.xlsx and CSV with formulas). Saving a file you opened keeps its pictures, tables, styles, charts and merged cells. |
-| 06 | **Assistant** | Type what you need ("scan a document", "merge PDFs", "loan EMI") and it opens the right tool. |
+| 06 | **Ask Sparky** | Type what you need ("scan a document", "merge PDFs", "loan EMI") and Sparky opens the right tool. Use simple commands to find tools, do a quick calculation or get help in the app. |
 
-Also included: an iPhone-style **Calculator** with scientific and finance modes (EMI, SIP, GST), currency converter and a floating calculator, **Notes** (checklists, tags, pins and fingerprint-locked notes), **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes.
+Also included: an iPhone-style **Calculator** with scientific and finance modes (EMI, SIP, GST), currency converter and a floating calculator, **Notes** (checklists, tags, pins and fingerprint-locked notes), **Weather** (today and 3 days), **My Files** for your scans, PDFs and enhanced photos, and light and dark themes you can change in Settings.
 
 ## Screenshots
 
 <p align="center">
-  <img src="shots/home.webp" width="250" alt="Home screen">
-  <img src="shots/photo-enhancer.webp" width="250" alt="Photo Enhancer">
-  <img src="shots/calculator.webp" width="250" alt="Calculator">
+  <img src="assets/02-Screenshot_2026-11-06-20-13-28-54_0cdcdfcafc2760484c22cdbf036575f2.jpg" width="200" alt="Home screen: quick actions and everyday essentials">
+  <img src="assets/04-Screenshot_2026-11-06-20-13-38-15_0cdcdfcafc2760484c22cdbf036575f2.jpg" width="200" alt="The toolkit: scanning, PDF, Word, Excel and My Files">
+  <img src="assets/08-Screenshot_2026-11-06-20-14-19-79_0cdcdfcafc2760484c22cdbf036575f2.jpg" width="200" alt="Ask Sparky: simple commands to find tools">
+</p>
+<p align="center">
+  <img src="assets/07-Screenshot_2026-11-06-20-13-52-30_0cdcdfcafc2760484c22cdbf036575f2.jpg" width="200" alt="My Files: your scans and PDFs">
+  <img src="assets/09-Screenshot_2026-11-06-20-14-27-17_0cdcdfcafc2760484c22cdbf036575f2.jpg" width="200" alt="Settings: theme, profile and Shizuku connection">
 </p>
 
 ## Private by design
@@ -50,7 +54,7 @@ Also included: an iPhone-style **Calculator** with scientific and finance modes 
 
 ## Install
 
-1. On your Android phone, open the [latest release](https://github.com/Janardanpal007/mobile-handler/releases/latest) and download **MobileHandler.apk**.
+1. On your Android phone, open the [website](https://janardanpal007.github.io/mobile-handler/) and tap **Download APK**. You can also get **MobileHandler.apk** from the [latest release](https://github.com/Janardanpal007/mobile-handler/releases/latest).
 2. Open the file. If Android asks, allow your browser to install apps.
 3. Tap **Install**. Play Protect may warn you because the app isn't from the Play Store; tap **Install anyway**.
 4. For Phone Cleaner, install the free [Shizuku](https://shizuku.rikka.app/) app. Mobile Handler walks you through setting it up step by step.
