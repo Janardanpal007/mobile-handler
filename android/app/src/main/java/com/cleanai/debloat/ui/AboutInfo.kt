@@ -23,6 +23,14 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0.2", "6 Nov 2026",
+        listOf(
+            "Open PDF, Word and Excel files straight from Files, Downloads, WhatsApp, Gmail and other apps",
+            "If you have unsaved changes, you're asked before another file replaces them",
+            "Home: tidier Documents row",
+        ),
+    ),
+    Release(
         "2.0.1", "6 Nov 2026",
         listOf(
             "PDF Editor: All tools is now grouped into Edit & sign, Pages, Protect & share and Create a PDF, with a line on what each tool does",
