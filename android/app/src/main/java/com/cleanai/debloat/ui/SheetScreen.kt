@@ -189,6 +189,8 @@ fun SheetScreen(onBack: () -> Unit) {
     }
 
     val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked -> picked?.let(::openUri) }
+    // An .xlsx or .csv opened from another app. If this one has unsaved changes, it asks first.
+    DocLaunch.Receiver(DocLaunch.Kind.EXCEL, dirty, name, ::openUri)
 
     fun newSheet() {
         uri = null; name = "Spreadsheet.xlsx"; csv = false; source = null; simpleCopy = false

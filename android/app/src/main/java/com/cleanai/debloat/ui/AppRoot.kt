@@ -118,7 +118,7 @@ private fun Screen(
             onFiles = { go("files") },
             onOpenDoc = { doc ->
                 if (doc.hasPdf) {
-                    PdfLaunch.open(Uri.fromFile(doc.pdf))
+                    DocLaunch.open(DocLaunch.Kind.PDF, Uri.fromFile(doc.pdf))
                     go("pdfreader")
                 } else go("files")
             },

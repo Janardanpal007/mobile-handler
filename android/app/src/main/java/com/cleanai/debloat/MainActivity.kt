@@ -19,8 +19,10 @@ import androidx.lifecycle.lifecycleScope
 import com.cleanai.debloat.agent.AgentViewModel
 import com.cleanai.debloat.agent.Launch
 import com.cleanai.debloat.agent.QrScan
+import android.net.Uri
 import com.cleanai.debloat.ui.AppRoot
 import com.cleanai.debloat.ui.AppTheme
+import com.cleanai.debloat.ui.DocLaunch
 import com.cleanai.debloat.ui.MobileHandlerTheme
 import com.cleanai.debloat.data.Updates
 import android.os.Build
@@ -62,6 +64,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         AppTheme.load(this, (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES)
+        DocLaunch.showScreen = { vm.show(it) }
         setContent {
             MobileHandlerTheme { AppRoot(vm) }
         }
@@ -88,10 +91,26 @@ class MainActivity : ComponentActivity() {
         openRequested(intent)
     }
 
-    /** The floating calculator's title opens the full calculator here. */
+    /** The floating calculator's title opens the full calculator here; a file opened from another app goes to its editor. */
     private fun openRequested(intent: Intent?) {
         intent?.getStringExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)?.let { vm.show(it) }
         intent?.removeExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)
+        if (intent?.action == Intent.ACTION_VIEW) {
+            intent.data?.let { openFile(it, intent.type) }
+            intent.action = null
+        }
+    }
+
+    private fun openFile(uri: Uri, mime: String?) {
+        val name = runCatching { com.cleanai.debloat.data.PdfEdit.displayName(this, uri) }.getOrNull()
+        val kind = DocLaunch.kindOf(mime ?: contentResolver.getType(uri), name)
+        if (kind == null) {
+            Toast.makeText(this, "Mobile Handler opens PDF, Word (.docx) and Excel (.xlsx, .csv) files.", Toast.LENGTH_LONG).show()
+            return
+        }
+        DocLaunch.open(kind, uri)
+        // An editor with unsaved changes asks first, and moves on to this file's editor if the user agrees.
+        if (DocLaunch.canSwitchTo(kind)) vm.show(kind.screen)
     }
 
     override fun onResume() {

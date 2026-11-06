@@ -149,7 +149,7 @@ fun HomeScreen(
                 }
             }
         }
-        item { Box(Modifier.enter(4)) { SectionTitle("Documents", "See all", onAction = { onGroup(ToolGroup.DOCUMENTS) }) } }
+        item { Box(Modifier.enter(4)) { SectionTitle("Documents", null) } }
         item {
             Row(Modifier.enter(5), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 DocumentTools.forEach { (id, label) ->

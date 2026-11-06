@@ -184,6 +184,8 @@ fun WordScreen(onBack: () -> Unit) {
     }
 
     val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked -> picked?.let(::openUri) }
+    // A .docx opened from another app. If this one has unsaved changes, it asks first.
+    DocLaunch.Receiver(DocLaunch.Kind.WORD, dirty, name, ::openUri)
 
     fun newDocument() {
         uri = null; name = "Document.docx"; source = null

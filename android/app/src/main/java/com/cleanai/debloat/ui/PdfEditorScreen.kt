@@ -165,7 +165,7 @@ enum class EditorStart { READ, SIGN, STAMP }
  * Save writes back to the same file (or a copy).
  */
 @Composable
-fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = EditorStart.READ) {
+fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = EditorStart.READ, onOpenOther: (Uri) -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -328,6 +328,9 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
     val saveCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
         if (out != null) save(out)
     }
+
+    // A file opened from another app while this PDF is open; asks first if there are unsaved changes.
+    DocLaunch.Receiver(DocLaunch.Kind.PDF, dirty, PdfEdit.displayName(ctx, fileUri), onOpenOther)
 
     BackHandler {
         when {

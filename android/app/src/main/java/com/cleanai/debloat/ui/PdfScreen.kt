@@ -50,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -101,14 +102,6 @@ internal enum class PdfTool(val title: String, val blurb: String) {
 
 private val WatermarkColors = listOf(0xFF7A7A7A.toInt(), 0xFFD32F2F.toInt(), 0xFF1F4FB8.toInt(), 0xFF2E7D32.toInt())
 
-/** A PDF to open straight away the next time the PDF screen starts (e.g. from "Continue" on Home). */
-object PdfLaunch {
-    private var pending: Uri? = null
-
-    fun open(uri: Uri) { pending = uri }
-
-    fun take(): Uri? = pending.also { pending = null }
-}
 
 /**
  * Document Studio: open and edit PDFs (read, find text, draw, highlight, sign), the PDF tools (merge, split, compress, …)
@@ -118,7 +111,9 @@ object PdfLaunch {
 fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var open by remember { mutableStateOf(PdfLaunch.take()) }
+    var open by remember { mutableStateOf(DocLaunch.take(DocLaunch.Kind.PDF)) }
+    // A PDF opened from another app while this screen is already showing (the editor handles it when it is open).
+    LaunchedEffect(DocLaunch.waiting) { if (open == null) DocLaunch.take(DocLaunch.Kind.PDF)?.let { open = it } }
     var startWith by remember { mutableStateOf(EditorStart.READ) }
     var allTools by rememberSaveable { mutableStateOf(false) }
     var tool by remember { mutableStateOf<PdfTool?>(null) }
@@ -179,7 +174,9 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
     }
 
     open?.let { uri ->
-        PdfEditorScreen(uri, onClose = { open = null; startWith = EditorStart.READ }, startWith = startWith)
+        key(uri) {
+            PdfEditorScreen(uri, onClose = { open = null; startWith = EditorStart.READ }, startWith = startWith, onOpenOther = { open = it })
+        }
         return
     }
 
