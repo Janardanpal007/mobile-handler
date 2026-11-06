@@ -1,0 +1,285 @@
+/* Theme toggle button (both themes) */
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid #c2cfb6;
+  background: transparent;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background .25s, transform .25s;
+}
+
+.theme-toggle:hover {
+  background: #e9efdf;
+  transform: rotate(-12deg);
+}
+
+.theme-toggle span {
+  display: block;
+}
+
+header .theme-toggle {
+  margin-left: auto;
+}
+
+header > .button {
+  margin-left: 14px;
+}
+
+@media (max-width: 760px) {
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  header > .button {
+    margin-left: 10px;
+  }
+}
+
+/* Dark theme: overrides the light palette in style.css */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #eef3e8;
+  --muted: #a9b5a6;
+  --paper: #17201b;
+  --line: #34433a;
+}
+
+html[data-theme="dark"] body {
+  background: var(--paper);
+}
+
+html[data-theme="dark"] .theme-toggle {
+  border-color: #4a5c50;
+}
+
+html[data-theme="dark"] .theme-toggle:hover {
+  background: #26342b;
+}
+
+html[data-theme="dark"] nav a:hover,
+html[data-theme="dark"] footer a:hover {
+  color: #f0a08a;
+}
+
+/* Inverted primary controls: light pill with dark text */
+html[data-theme="dark"] .button {
+  background: #dfe9d2;
+  color: #15211b;
+}
+
+html[data-theme="dark"] .button:hover {
+  background: #c9d9bb;
+}
+
+html[data-theme="dark"] .brandmark {
+  background: #dfe9d2;
+  color: #15211b;
+}
+
+html[data-theme="dark"] .brandmark span {
+  color: #bd4d39;
+}
+
+html[data-theme="dark"] .beta {
+  border-color: #4a5c50;
+}
+
+html[data-theme="dark"] .filters button.active,
+html[data-theme="dark"] .world-tabs button.selected {
+  background: #dfe9d2;
+  color: #15211b;
+}
+
+html[data-theme="dark"] .world-tabs {
+  background: #1d2820e6;
+  border-color: #34433a;
+}
+
+html[data-theme="dark"] .world-tabs button {
+  color: #b5c2ad;
+}
+
+/* Surfaces that were light cream/green */
+html[data-theme="dark"] .experience,
+html[data-theme="dark"] .sparky-section,
+html[data-theme="dark"] .screen-display,
+html[data-theme="dark"] .download {
+  background: #1f2a23;
+  border-color: #34433a;
+}
+
+html[data-theme="dark"] .download {
+  background: #222f28;
+}
+
+html[data-theme="dark"] .download-decoration {
+  color: #2c3d32;
+}
+
+html[data-theme="dark"] .desk-topline {
+  border-color: #34433a;
+}
+
+html[data-theme="dark"] .desk-grid {
+  background-image:
+    linear-gradient(#6f8a6a40 1px, transparent 1px),
+    linear-gradient(90deg, #6f8a6a40 1px, transparent 1px);
+}
+
+html[data-theme="dark"] .ambient-one {
+  background: #4a6040a0;
+}
+
+html[data-theme="dark"] .ambient-two {
+  background: #7a4a3a80;
+}
+
+html[data-theme="dark"] .desk-ring {
+  border-color: #4b5e4c;
+}
+
+html[data-theme="dark"] .pedestal {
+  background: linear-gradient(170deg, #2b3b32, #1a251f);
+  box-shadow: 0 16px 0 #223026, 0 30px 0 -3px #1d2a22, 12px 40px 36px #00000055;
+}
+
+html[data-theme="dark"] .float-tag,
+html[data-theme="dark"] .scene-chip {
+  background: #24332bf0;
+  border-color: #3a4b40;
+  color: var(--ink);
+  box-shadow: 0 14px 40px #00000040;
+}
+
+html[data-theme="dark"] .check {
+  background: #2e4232;
+  color: #b9d69b;
+}
+
+html[data-theme="dark"] .scene-story p {
+  color: #aebca4;
+}
+
+html[data-theme="dark"] .scene-story a {
+  border-color: #56684f;
+}
+
+html[data-theme="dark"] .tool-card,
+html[data-theme="dark"] .hero-paths > a,
+html[data-theme="dark"] .bubble,
+html[data-theme="dark"] .commands button {
+  background: #232f28;
+  border-color: #34433a;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .tool-card p,
+html[data-theme="dark"] .hero-paths small {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .hero-paths b {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .sparky-circle {
+  background: #2b3a2f;
+}
+
+html[data-theme="dark"] .sparky-art > .spark {
+  color: #d9825f;
+}
+
+html[data-theme="dark"] .command-demo {
+  border-color: #3d4f43;
+}
+
+html[data-theme="dark"] .commands button {
+  background: #24332b;
+}
+
+html[data-theme="dark"] .screen-menu button.active,
+html[data-theme="dark"] .mini-icons {
+  background: #2c3a31;
+  color: #c4d9ac;
+}
+
+html[data-theme="dark"] .screen-menu button {
+  color: #aab79f;
+}
+
+html[data-theme="dark"] .viewer-phone {
+  border-color: #4a5c50;
+  box-shadow: 10px 18px 25px #00000040;
+}
+
+html[data-theme="dark"] .outline {
+  border-color: #4a5c50;
+}
+
+html[data-theme="dark"] input {
+  border-color: #4a5c50;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .filters button {
+  color: #aab79f;
+}
+
+html[data-theme="dark"] .stage .orbit,
+html[data-theme="dark"] .orbit {
+  border-color: #3d4f43;
+}
+
+html[data-theme="dark"] .care-items article,
+html[data-theme="dark"] .faq details,
+html[data-theme="dark"] .ribbon,
+html[data-theme="dark"] footer {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .desk-hint,
+html[data-theme="dark"] .desk-bottom,
+html[data-theme="dark"] .scene-label,
+html[data-theme="dark"] .hero-note strong {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .scene-label button {
+  border-color: #4a5c50;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] #motion {
+  border-color: #4a5c50;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .fine,
+html[data-theme="dark"] .download > p {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] dialog {
+  background: #1a241e;
+  border-color: #34433a;
+}
+
+html[data-theme="dark"] .close {
+  color: var(--ink);
+}
+
+/* Mascot images use multiply, which turns cream backgrounds dark; keep them readable */
+html[data-theme="dark"] .mascot-crop,
+html[data-theme="dark"] .peek-crop {
+  mix-blend-mode: normal;
+  opacity: .92;
+}
