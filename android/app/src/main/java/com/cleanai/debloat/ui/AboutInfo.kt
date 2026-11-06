@@ -23,6 +23,13 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0.1", "6 Nov 2026",
+        listOf(
+            "PDF Editor: All tools is now grouped into Edit & sign, Pages, Protect & share and Create a PDF, with a line on what each tool does",
+            "PDF Editor: delete a file from Recent files (you're asked first)",
+        ),
+    ),
+    Release(
         "2.0", "6 Nov 2026",
         listOf(
             "New look: Home with Sparky, quick actions you can change, and your PDF, Word and Excel editors",
