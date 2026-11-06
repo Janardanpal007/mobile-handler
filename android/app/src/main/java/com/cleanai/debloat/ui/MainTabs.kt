@@ -24,8 +24,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,8 +52,8 @@ import com.cleanai.debloat.features.Features
 import com.cleanai.debloat.features.ToolGroup
 
 /**
- * The app's main frame: Home and Tools tabs with the bottom bar (Home · Tools · Files · Settings).
- * Files and Settings open their own full screens; the assistant opens from Home.
+ * The app's main frame: Home and Tools tabs with the bottom bar (Home · Tools · Files · Ask).
+ * Files and Ask (the assistant) open their own full screens; Settings is in Home's header.
  */
 @Composable
 fun MainTabs(
@@ -73,8 +71,8 @@ fun MainTabs(
     Column(Modifier.fillMaxSize().background(Bg)) {
         Box(Modifier.weight(1f).statusBarsPadding()) {
             AnimatedContent(tab, transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) }, label = "tab") { t ->
-                if (t == 0) HomeScreen(name, shizuku, onFeature, onAsk, onOpenDoc, onGroup = { group = it; tab = 1 })
-                else ToolsScreen(group, onFeature)
+                if (t == 0) HomeScreen(name, onFeature, onAsk, onOpenDoc, onGroup = { group = it; tab = 1 }, onSettings = onSettings)
+                else ToolsScreen(group, shizuku, onFeature)
             }
         }
         NavBar(
@@ -82,7 +80,7 @@ fun MainTabs(
             onHome = { tab = 0 },
             onTools = { group = null; tab = 1 },
             onFiles = onFiles,
-            onSettings = onSettings,
+            onAsk = { onAsk(null) },
         )
     }
 }
@@ -90,7 +88,7 @@ fun MainTabs(
 /** Every tool, grouped, with a filter box. Opens scrolled to [start] when a Home group was tapped. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ToolsScreen(start: ToolGroup?, onFeature: (Feature) -> Unit) {
+private fun ToolsScreen(start: ToolGroup?, shizuku: ShizukuShell.State, onFeature: (Feature) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     val focus = LocalFocusManager.current
@@ -98,11 +96,11 @@ private fun ToolsScreen(start: ToolGroup?, onFeature: (Feature) -> Unit) {
     val grouped = ToolGroup.entries.mapNotNull { g -> shown.filter { it.group == g }.takeIf { it.isNotEmpty() }?.let { g to it } }
     LaunchedEffect(start) {
         if (start == null) return@LaunchedEffect
-        // Two rows (title and search) come first, then each group is a header plus its tools.
+        // Two rows (title and search) come first, then each group is a header plus its tools (Phone Care has the status too).
         var index = 2
         for ((g, tools) in grouped) {
             if (g == start) break
-            index += 1 + tools.size
+            index += 1 + tools.size + if (g == ToolGroup.DEVICE) 1 else 0
         }
         list.scrollToItem(index)
     }
@@ -121,6 +119,8 @@ private fun ToolsScreen(start: ToolGroup?, onFeature: (Feature) -> Unit) {
                     modifier = Modifier.fillMaxWidth().background(Bg).padding(start = 4.dp, top = 14.dp, bottom = 6.dp),
                 )
             }
+            // Phone Care tools need Shizuku, so its status is shown with them.
+            if (g == ToolGroup.DEVICE) item(key = "shizuku") { StatusChip(shizukuLabel(shizuku), shizukuDot(shizuku), background = Card, textColor = TextSecondary) }
             items(tools, key = { it.id }) { f -> ToolRow(f) { focus.clearFocus(); onFeature(f) } }
         }
         if (grouped.isEmpty()) item { Text("No tool matches “$query”.", color = TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(4.dp)) }
@@ -128,14 +128,14 @@ private fun ToolsScreen(start: ToolGroup?, onFeature: (Feature) -> Unit) {
 }
 
 @Composable
-private fun NavBar(selected: Int, onHome: () -> Unit, onTools: () -> Unit, onFiles: () -> Unit, onSettings: () -> Unit) {
+private fun NavBar(selected: Int, onHome: () -> Unit, onTools: () -> Unit, onFiles: () -> Unit, onAsk: () -> Unit) {
     Column(Modifier.fillMaxWidth().background(CardHi).navigationBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
             NavItem("Home", selected == 0, Modifier.weight(1f), onHome) { tint -> Icon(painterResource(R.drawable.ic_home), null, tint = tint, modifier = Modifier.size(24.dp)) }
             NavItem("Tools", selected == 1, Modifier.weight(1f), onTools) { tint -> Icon(painterResource(R.drawable.ic_grid), null, tint = tint, modifier = Modifier.size(24.dp)) }
             NavItem("Files", false, Modifier.weight(1f), onFiles) { tint -> Icon(painterResource(R.drawable.ic_folder), null, tint = tint, modifier = Modifier.size(24.dp)) }
-            NavItem("Settings", false, Modifier.weight(1f), onSettings) { tint -> Icon(Icons.Filled.Settings, null, tint = tint, modifier = Modifier.size(24.dp)) }
+            NavItem("Ask", false, Modifier.weight(1f), onAsk) { tint -> Icon(painterResource(R.drawable.ic_tool_assistant), null, tint = tint, modifier = Modifier.size(24.dp)) }
         }
     }
 }

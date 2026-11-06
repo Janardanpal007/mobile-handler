@@ -41,14 +41,14 @@ data class Feature(
 
 /** How tools are grouped on Home and in the Tools tab. */
 enum class ToolGroup(val title: String) {
-    DOCUMENTS("Documents"), EVERYDAY("Everyday"), MEDIA("Photos & scans"), DEVICE("Phone"), APP("Help & info"),
+    DOCUMENTS("Documents"), EVERYDAY("Everyday"), MEDIA("Photos & Scans"), DEVICE("Phone Care"), APP("Help & info"),
 }
 
 sealed interface Opens {
     /** Opens the assistant and, if [act] is set, runs it right away. */
     data class Assistant(val act: Act?) : Opens
 
-    /** A feature with its own screen. [openTool] opens another feature by its id (e.g. the PDF studio opening "docscan"). */
+    /** A feature with its own screen. [openTool] opens another feature by its id (e.g. the PDF Editor opening "docscan"). */
     class Screen(val content: @Composable (onBack: () -> Unit, openTool: (String) -> Unit) -> Unit) : Opens
 }
 
@@ -59,9 +59,9 @@ object Features {
         Feature("qr", "Scan QR", "Links, Wi-Fi, text", R.drawable.ic_tool_qr, Coral, Opens.Assistant(Act.ScanQr), ToolGroup.MEDIA),
         Feature("docscan", "Scan Document", "Save pages as PDF", R.drawable.ic_tool_doc, Mint, Opens.Assistant(Act.ScanDoc), ToolGroup.DOCUMENTS),
         Feature("pdf", "Photos → PDF", "Combine images", R.drawable.ic_tool_pdf, Sky, Opens.Assistant(Act.MakePdf), ToolGroup.DOCUMENTS),
-        Feature("pdfreader", "PDF Studio", "Read, edit, sign PDFs", R.drawable.ic_tool_reader, Coral, Opens.Screen { onBack, openTool -> PdfScreen(onBack, openTool) }, ToolGroup.DOCUMENTS),
-        Feature("word", "Word", "Create & edit .docx", R.drawable.ic_tool_word, Sky, Opens.Screen { onBack, _ -> WordScreen(onBack) }, ToolGroup.DOCUMENTS),
-        Feature("excel", "Excel", "Sheets, CSV & formulas", R.drawable.ic_tool_sheet, Mint, Opens.Screen { onBack, _ -> SheetScreen(onBack) }, ToolGroup.DOCUMENTS),
+        Feature("pdfreader", "PDF Editor", "Read, edit, sign PDFs", R.drawable.ic_tool_reader, Coral, Opens.Screen { onBack, openTool -> PdfScreen(onBack, openTool) }, ToolGroup.DOCUMENTS),
+        Feature("word", "Word Editor", "Create & edit .docx", R.drawable.ic_tool_word, Sky, Opens.Screen { onBack, _ -> WordScreen(onBack) }, ToolGroup.DOCUMENTS),
+        Feature("excel", "Excel Editor", "Sheets, CSV & formulas", R.drawable.ic_tool_sheet, Mint, Opens.Screen { onBack, _ -> SheetScreen(onBack) }, ToolGroup.DOCUMENTS),
         Feature("notes", "Notes", "Lists, tags, lock", R.drawable.ic_tool_notes, Butter, Opens.Screen { onBack, _ -> NotesScreen(onBack) }, ToolGroup.EVERYDAY),
         Feature("photo", "Photo Enhancer", "HD, restore, colorize", R.drawable.ic_tool_photo, Coral, Opens.Screen { onBack, _ -> PhotoScreen(onBack) }, ToolGroup.MEDIA),
         Feature("assistant", "Assistant", "Help with app tools", R.drawable.ic_tool_assistant, Coral, Opens.Assistant(null), ToolGroup.APP),

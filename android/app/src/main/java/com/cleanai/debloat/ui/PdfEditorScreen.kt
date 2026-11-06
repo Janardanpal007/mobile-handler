@@ -217,7 +217,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
     var stamping by remember { mutableStateOf(false) }
     var showPages by remember { mutableStateOf(false) }
     var finding by remember { mutableStateOf(false) }
-    // Opened from PDF Studio's Sign or Stamp: show that tool once the pages are ready.
+    // Opened from the PDF Editor's Sign or Stamp: show that tool once the pages are ready.
     var startDone by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -377,7 +377,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
             BarButton("↶", enabled = at > 0) { at--; selected = null }
             BarButton("↷", enabled = at < history.lastIndex) { at++; selected = null }
             Spacer(Modifier.width(6.dp))
-            PillButton("Save", if (dirty) Accent else Card, if (dirty) Color.White else TextSecondary, enabled = dirty && busy == null) { save(null) }
+            PillButton("Save", if (dirty) Accent else Card, if (dirty) OnAccent else TextSecondary, enabled = dirty && busy == null) { save(null) }
             Box {
                 BarButton("⋮") { menu = true }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

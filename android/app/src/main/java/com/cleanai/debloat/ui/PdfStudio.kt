@@ -38,7 +38,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -59,15 +58,9 @@ internal class StudioActions(
     val openPdf: (EditorStart) -> Unit,
     val pdfTool: (PdfTool) -> Unit,
     val openTool: (String) -> Unit,
-    val startTool: (String, ToolStart.Action) -> Unit,
     val openDoc: (MyFiles.Doc) -> Unit,
     val showAllTools: () -> Unit,
 )
-
-private enum class StudioTab(val title: String) { PDF("PDF"), WORD("Word"), EXCEL("Excel") }
-
-/** The tab last used, so coming back from Word or Excel shows the same tab. */
-private var lastTab = StudioTab.PDF
 
 private const val GRID_COLUMNS = 4
 private const val RECENT_SHOWN = 4
@@ -104,35 +97,19 @@ private fun allToolGroups(a: StudioActions) = listOf(
     "Create" to listOf(
         StudioTile("Scan", R.drawable.ic_tool_doc, Mint) { a.openTool("docscan") },
         StudioTile("Photos to PDF", R.drawable.ic_tool_pdf, Sky) { a.openTool("pdf") },
-        StudioTile("Word", R.drawable.ic_tool_word, Sky) { a.startTool("word", ToolStart.Action.NEW) },
-        StudioTile("Excel", R.drawable.ic_tool_sheet, Mint) { a.startTool("excel", ToolStart.Action.NEW) },
     ),
 )
 
 /**
- * PDF Studio's start page: PDF / Word / Excel tabs, one "open" card, round tool buttons and recent files.
+ * The PDF Editor's start page: one "open" card, round tool buttons and recent PDFs.
  * Every button leads to something that already works; nothing here is a placeholder.
  */
 @Composable
 internal fun StudioHome(mine: List<MyFiles.Doc>, actions: StudioActions) {
-    var tab by rememberSaveable { mutableStateOf(lastTab) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Tabs(tab) { tab = it; lastTab = it }
-        when (tab) {
-            StudioTab.PDF -> {
-                OpenCard("Open a PDF", "Read, find text, edit and sign", R.drawable.ic_tool_reader) { actions.openPdf(EditorStart.READ) }
-                TileGrid(pdfTiles(actions))
-                RecentFiles(mine, actions.openDoc)
-            }
-            StudioTab.WORD -> {
-                OpenCard("Open a Word file", ".docx from your phone, Drive or Downloads", R.drawable.ic_tool_word) { actions.startTool("word", ToolStart.Action.OPEN) }
-                TileGrid(listOf(StudioTile("New document", R.drawable.ic_plus, Sky) { actions.startTool("word", ToolStart.Action.NEW) }))
-            }
-            StudioTab.EXCEL -> {
-                OpenCard("Open a spreadsheet", ".xlsx or .csv from your phone, Drive or Downloads", R.drawable.ic_tool_sheet) { actions.startTool("excel", ToolStart.Action.OPEN) }
-                TileGrid(listOf(StudioTile("New sheet", R.drawable.ic_plus, Mint) { actions.startTool("excel", ToolStart.Action.NEW) }))
-            }
-        }
+        OpenCard("Open a PDF", "Read, find text, edit and sign", R.drawable.ic_tool_reader) { actions.openPdf(EditorStart.READ) }
+        TileGrid(pdfTiles(actions))
+        RecentFiles(mine, actions.openDoc)
         Note("Everything happens on your phone — your documents are never uploaded.")
     }
 }
@@ -149,22 +126,6 @@ internal fun StudioAllTools(actions: StudioActions) {
 }
 
 @Composable
-private fun Tabs(selected: StudioTab, onSelect: (StudioTab) -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Card).padding(4.dp)) {
-        StudioTab.entries.forEach { t ->
-            val on = t == selected
-            Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (on) CardHi else Color.Transparent)
-                    .bouncy { onSelect(t) }.semantics { role = Role.Tab; this.selected = on }.padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(t.title, color = if (on) TextPrimary else TextSecondary, fontSize = 15.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium)
-            }
-        }
-    }
-}
-
-@Composable
 private fun OpenCard(title: String, subtitle: String, @DrawableRes icon: Int, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(20.dp))
@@ -172,7 +133,7 @@ private fun OpenCard(title: String, subtitle: String, @DrawableRes icon: Int, on
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Accent), contentAlignment = Alignment.Center) {
-            Icon(painterResource(icon), null, tint = Color.White, modifier = Modifier.size(26.dp))
+            Icon(painterResource(icon), null, tint = OnAccent, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -185,7 +146,7 @@ private fun OpenCard(title: String, subtitle: String, @DrawableRes icon: Int, on
 
 /** Round icon buttons, four to a row. */
 @Composable
-private fun TileGrid(tiles: List<StudioTile>) {
+internal fun TileGrid(tiles: List<StudioTile>) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(GRID_COLUMNS).forEach { row ->
             Row(Modifier.fillMaxWidth()) {
@@ -197,7 +158,7 @@ private fun TileGrid(tiles: List<StudioTile>) {
 }
 
 @Composable
-private fun RoundTile(tile: StudioTile, modifier: Modifier) {
+internal fun RoundTile(tile: StudioTile, modifier: Modifier) {
     Column(
         modifier.clip(RoundedCornerShape(16.dp)).bouncy(onClick = tile.onClick).semantics(mergeDescendants = true) { role = Role.Button }
             .padding(vertical = 6.dp),

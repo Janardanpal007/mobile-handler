@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -47,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,18 +61,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cleanai.debloat.R
 import com.cleanai.debloat.data.MyFiles
-import com.cleanai.debloat.data.ShizukuShell
 import com.cleanai.debloat.features.Feature
 import com.cleanai.debloat.features.Features
 import com.cleanai.debloat.features.ToolGroup
 
 private val DefaultPins = listOf("docscan", "calculator", "pdfreader", "qr")
 
-/** What a pinned shortcut does, in a few words; tools without one show their subtitle. */
-private val QuickLabel = mapOf(
-    "docscan" to "Camera → PDF", "calculator" to "Start calculating", "pdfreader" to "Open a PDF", "qr" to "Point at a code",
-    "notes" to "Write a note", "pdf" to "Pick photos", "photo" to "Pick a photo", "weather" to "Today's forecast",
+/** Short names for the small round buttons on Home. */
+private val ShortLabel = mapOf(
+    "docscan" to "Scan", "calculator" to "Calculator", "pdfreader" to "Edit PDF", "qr" to "Scan QR", "notes" to "Notes",
+    "pdf" to "Images → PDF", "photo" to "Photo", "weather" to "Weather", "adblock" to "Ad Block", "cleaner" to "Cleaner",
+    "files" to "Files", "restore" to "Restore", "word" to "Word", "excel" to "Excel",
 )
+
+private fun shortLabel(f: Feature) = ShortLabel[f.id] ?: f.title
+
+/** The three document editors, each its own tool. */
+private val DocumentTools = listOf("pdfreader" to "PDF", "word" to "Word", "excel" to "Excel")
+
+private const val MORE_TOOLS_SHOWN = 7
 
 /** The four Home shortcuts, saved on the phone; the user can swap any of them. */
 private object Pins {
@@ -86,18 +96,18 @@ private object Pins {
     }
 }
 
-/** Groups shown on Home, each opening its part of the Tools tab. */
-private val HomeGroups = listOf(ToolGroup.DOCUMENTS, ToolGroup.EVERYDAY, ToolGroup.MEDIA, ToolGroup.DEVICE)
-
-/** Home, task first: search, four pinned actions, what you were working on, and the tool groups. */
+/**
+ * Home, task first: Sparky's greeting, one bar to ask or search, four quick actions, the PDF / Word / Excel editors,
+ * more tools, and what you were working on.
+ */
 @Composable
 fun HomeScreen(
     name: String,
-    shizuku: ShizukuShell.State,
     onFeature: (Feature) -> Unit,
     onAsk: (String?) -> Unit,
     onOpenDoc: (MyFiles.Doc) -> Unit,
     onGroup: (ToolGroup?) -> Unit,
+    onSettings: () -> Unit,
 ) {
     val ctx = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
@@ -111,12 +121,10 @@ fun HomeScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Box(Modifier.enter(0)) { Header(name, onSparky = { onAsk(null) }) } }
-        item { Box(Modifier.enter(1)) { StatusChip(shizukuLabel(shizuku), shizukuDot(shizuku), background = Card, textColor = TextSecondary) } }
-        if (query.isBlank()) item { Box(Modifier.enter(2)) { AskCard { onAsk(null) } } }
+        item { Box(Modifier.enter(0)) { Header(name, onSparky = { onAsk(null) }, onSettings = onSettings) } }
         item {
-            Box(Modifier.enter(2)) {
-                SearchField(query, { query = it }, onGo = {
+            Box(Modifier.enter(1)) {
+                SearchField(query, { query = it }, placeholder = "Ask Sparky or find a tool…", onGo = {
                     val hits = searchTools(query)
                     focus.clearFocus()
                     if (hits.size == 1) onFeature(hits[0]) else if (query.isNotBlank()) onAsk(query.trim())
@@ -132,32 +140,35 @@ fun HomeScreen(
             if (hits.isEmpty()) item { Text("No tool by that name. Sparky can still help.", color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp)) }
             return@LazyColumn
         }
-        item { Box(Modifier.enter(3)) { SectionTitle("Quick actions", "Long-press to change") } }
+        item { Box(Modifier.enter(2)) { SectionTitle("Quick actions", "Long-press to change") } }
         item {
-            Column(Modifier.enter(4), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                pins.chunked(2).forEachIndexed { row, pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        pair.forEachIndexed { col, id ->
-                            val f = Features.byId(id) ?: return@forEachIndexed
-                            QuickAction(f, Modifier.weight(1f), onClick = { onFeature(f) }, onLongClick = { editing = row * 2 + col })
-                        }
-                    }
+            Row(Modifier.enter(3).fillMaxWidth()) {
+                pins.forEachIndexed { slot, id ->
+                    val f = Features.byId(id) ?: return@forEachIndexed
+                    QuickTile(f, Modifier.weight(1f), onClick = { onFeature(f) }, onLongClick = { editing = slot })
                 }
             }
+        }
+        item { Box(Modifier.enter(4)) { SectionTitle("Documents", "See all", onAction = { onGroup(ToolGroup.DOCUMENTS) }) } }
+        item {
+            Row(Modifier.enter(5), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DocumentTools.forEach { (id, label) ->
+                    Features.byId(id)?.let { f -> DocumentCard(f, label, Modifier.weight(1f)) { onFeature(f) } }
+                }
+            }
+        }
+        item { Box(Modifier.enter(6)) { SectionTitle("More tools", "All tools", onAction = { onGroup(null) }) } }
+        item {
+            val more = Features.all.filter { f ->
+                f.group != ToolGroup.APP && f.id !in pins && DocumentTools.none { it.first == f.id }
+            }.take(MORE_TOOLS_SHOWN)
+            val tiles = more.map { f -> StudioTile(shortLabel(f), f.icon, f.tint) { onFeature(f) } } +
+                StudioTile("All tools", R.drawable.ic_grid, Sky) { onGroup(null) }
+            Box(Modifier.enter(7)) { TileGrid(tiles) }
         }
         if (recent.isNotEmpty()) {
-            item { Box(Modifier.enter(5)) { SectionTitle("Continue", null) } }
-            recent.forEach { doc -> item(key = doc.dir.name) { Box(Modifier.enter(6)) { RecentRow(doc) { onOpenDoc(doc) } } } }
-        }
-        item { Box(Modifier.enter(7)) { SectionTitle("All tools", "See all", onAction = { onGroup(null) }) } }
-        item {
-            Column(Modifier.enter(8), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HomeGroups.chunked(2).forEach { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        pair.forEach { g -> GroupCard(g, Modifier.weight(1f)) { onGroup(g) } }
-                    }
-                }
-            }
+            item { Box(Modifier.enter(8)) { SectionTitle("Continue", null) } }
+            recent.forEach { doc -> item(key = doc.dir.name) { Box(Modifier.enter(8)) { RecentRow(doc) { onOpenDoc(doc) } } } }
         }
         item {
             Text(BUILT_BY, color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
@@ -198,12 +209,12 @@ internal fun searchTools(query: String): List<Feature> {
 }
 
 @Composable
-private fun Header(name: String, onSparky: () -> Unit) {
+private fun Header(name: String, onSparky: () -> Unit, onSettings: () -> Unit) {
     val hour = rememberHour()
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         SparkyPortrait(
             timeMood(hour),
-            Modifier.size(72.dp),
+            Modifier.size(60.dp),
             description = "Sparky. Opens the assistant",
             onTap = onSparky,
         )
@@ -213,24 +224,27 @@ private fun Header(name: String, onSparky: () -> Unit) {
                 if (name.isBlank()) greeting(hour) else "${greeting(hour)}, $name",
                 color = TextSecondary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
-            Text("What shall we do?", color = TextPrimary, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
+            Text("What shall we do?", color = TextPrimary, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
         }
         ThemeButton()
+        Spacer(Modifier.width(8.dp))
+        CircleButton(onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextPrimary, modifier = Modifier.size(20.dp)) }
     }
+}
+
+@Composable
+private fun CircleButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(CircleShape).background(CardHi).border(1.dp, Line, CircleShape).bouncy(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
 
 /** Sun / moon button: switches between light and dark theme. */
 @Composable
 private fun ThemeButton() {
     val ctx = LocalContext.current
-    Box(
-        Modifier.bouncy { AppTheme.set(ctx, !AppTheme.dark) }
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(CardHi)
-            .border(1.dp, Line, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
+    CircleButton({ AppTheme.set(ctx, !AppTheme.dark) }) {
         Icon(
             painterResource(if (AppTheme.dark) R.drawable.ic_sun else R.drawable.ic_moon),
             contentDescription = if (AppTheme.dark) "Light theme" else "Dark theme",
@@ -298,23 +312,33 @@ internal fun ToolIcon(f: Feature, size: Dp = 44.dp) {
     }
 }
 
+/** A small round shortcut; long-press swaps it for another tool. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun QuickAction(f: Feature, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun QuickTile(f: Feature, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
     Column(
-        modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(CardHi)
-            .border(1.dp, Line, RoundedCornerShape(24.dp))
+        modifier.clip(RoundedCornerShape(16.dp))
             .combinedClickable(role = Role.Button, onLongClickLabel = "Change shortcut", onClick = onClick, onLongClick = onLongClick)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ToolIcon(f, 48.dp)
-        Column {
-            Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(QuickLabel[f.id] ?: f.subtitle, color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        ToolIcon(f, 56.dp)
+        Spacer(Modifier.size(6.dp))
+        Text(shortLabel(f), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** One of the three document editors. */
+@Composable
+private fun DocumentCard(f: Feature, label: String, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(20.dp))
+            .bouncy(onClick = onClick).semantics(mergeDescendants = true) { role = Role.Button }.padding(vertical = 14.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ToolIcon(f, 44.dp)
+        Spacer(Modifier.size(8.dp))
+        Text(label, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -331,26 +355,6 @@ internal fun ToolRow(f: Feature, selected: Boolean = false, onClick: () -> Unit)
         Column(Modifier.weight(1f)) {
             Text(f.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(f.subtitle, color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Text("›", color = TextSecondary, fontSize = 22.sp)
-    }
-}
-
-/** The main way into the assistant: one big, friendly card. */
-@Composable
-private fun AskCard(onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(20.dp))
-            .bouncy(onClick = onClick).semantics(mergeDescendants = true) {}.padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
-            Icon(painterResource(R.drawable.ic_tool_assistant), null, tint = Color.White, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Ask Sparky", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text("Scan a document, improve a photo, clean my phone…", color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text("›", color = TextSecondary, fontSize = 22.sp)
     }
@@ -384,25 +388,5 @@ private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit) {
             Text(if (doc.hasPdf) "PDF · ${doc.sizeText}" else "Photos · ${doc.sizeText}", color = TextSecondary, fontSize = 13.sp)
         }
         Text("Open", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun GroupCard(g: ToolGroup, modifier: Modifier, onClick: () -> Unit) {
-    val tools = remember(g) { Features.all.filter { it.group == g } }
-    Column(
-        modifier.clip(RoundedCornerShape(24.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(24.dp))
-            .bouncy(onClick = onClick).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
-            tools.take(3).forEach { f ->
-                Box(Modifier.border(2.dp, CardHi, CircleShape)) { ToolIcon(f, 32.dp) }
-            }
-        }
-        Column {
-            Text(g.title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${tools.size} tools", color = TextSecondary, fontSize = 13.sp)
-        }
     }
 }

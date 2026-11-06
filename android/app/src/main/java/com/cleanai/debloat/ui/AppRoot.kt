@@ -33,7 +33,7 @@ private const val PROFILE = "profile"
 @Composable
 fun AppRoot(vm: AgentViewModel) {
     var screen by rememberSaveable { mutableStateOf(HOME) }
-    // A tool opened from inside another tool (Word from PDF Studio) goes back to that tool, not Home.
+    // A tool opened from inside another tool (Scan from the PDF Editor) goes back to that tool, not Home.
     var cameFrom by rememberSaveable { mutableStateOf<String?>(null) }
     val goHome = { cameFrom = null; screen = HOME }
     val goBack = { screen = cameFrom ?: HOME; cameFrom = null }

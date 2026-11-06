@@ -224,7 +224,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                 original == null -> Btn("Choose a photo", Charcoal, Color.White) {
                     pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
-                result == null -> Btn(mode.label, Accent, Color.White) { run() }
+                result == null -> Btn(mode.label, Accent, OnAccent) { run() }
                 else -> {
                     val r = result!!
                     Text(
@@ -248,7 +248,7 @@ fun PhotoScreen(onBack: () -> Unit) {
                                 ).show()
                             }
                         }
-                        Btn("Share", Accent, Color.White, Modifier.weight(1f)) {
+                        Btn("Share", Accent, OnAccent, Modifier.weight(1f)) {
                             scope.launch {
                                 val doc = saved ?: withContext(Dispatchers.IO) { MyFiles.savePhoto(ctx, r) }.also { saved = it }
                                 MyFiles.shareImages(ctx, doc)

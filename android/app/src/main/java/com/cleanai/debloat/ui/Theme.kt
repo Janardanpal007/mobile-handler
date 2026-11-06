@@ -32,23 +32,25 @@ object AppTheme {
 
 private fun pick(light: Long, dark: Long) = Color(if (AppTheme.dark) dark else light)
 
-// "Mobile Handler 2.0" (ChatGPT's Apple-inspired brief): warm-white / deep-charcoal surfaces, one blue accent.
-val Bg get() = pick(0xFFF7F8FA, 0xFF101114)
+// Coral and mint on forest-dark / porcelain surfaces (ChatGPT's "Sparky Flow" colours, chosen again on 6 Nov 2026).
+val Bg get() = pick(0xFFF7F9F5, 0xFF101512)
 /** Raised: chips, secondary buttons, pressed fills. */
-val Card get() = pick(0xFFECEEF2, 0xFF2A2D33)
+val Card get() = pick(0xFFEAF0E9, 0xFF29332C)
 /** Surface: cards and sheets. */
-val CardHi get() = pick(0xFFFFFFFF, 0xFF1C1E23)
-val Line get() = pick(0xFFD8DCE2, 0xFF383C44)
+val CardHi get() = pick(0xFFFFFFFF, 0xFF1B231E)
+val Line get() = pick(0xFFCBD6CC, 0xFF3B4A3E)
 /** Solid buttons. */
-val Charcoal get() = pick(0xFF1F2329, 0xFF3A3F48)
-val Sage get() = pick(0xFF5E646E, 0xFF8E949E)
-val TextPrimary get() = pick(0xFF17191D, 0xFFF5F5F7)
-val TextSecondary get() = pick(0xFF5E646E, 0xFFA1A6B0)
+val Charcoal get() = pick(0xFF1F2A22, 0xFF3B4A3E)
+val Sage get() = pick(0xFF526357, 0xFF8FA394)
+val TextPrimary get() = pick(0xFF19241C, 0xFFEDF4ED)
+val TextSecondary get() = pick(0xFF526357, 0xFFAAB9AD)
 
 /** Always-dark ink for icons sitting on the pastel circles. */
 val Ink = Color(0xFF27312C)
-/** Accent blue (#3478F6 family): a shade deeper on light and brighter on dark so text in it stays readable. */
-val Accent get() = pick(0xFF2A6BE4, 0xFF4C8BFF)
+/** Coral accent: deeper on light (#B84432) and brighter on dark (#FF806B), so text in it stays readable. */
+val Accent get() = pick(0xFFB84432, 0xFFFF806B)
+/** Text and icons on an [Accent] fill: white on the deep coral, near-black on the bright one. */
+val OnAccent get() = pick(0xFFFFFFFF, 0xFF2B140E)
 /** Sparky's orange, for mascot touches. */
 val SparkyOrange = Color(0xFFFF873E)
 /** Pastel coral for tool chips with dark ink icons (same in both themes). */
@@ -77,7 +79,7 @@ fun MobileHandlerTheme(content: @Composable () -> Unit) {
     }
     val scheme = if (dark) {
         darkColorScheme(
-            primary = Accent, onPrimary = Color.White, secondary = Accent,
+            primary = Accent, onPrimary = OnAccent, secondary = Accent,
             background = Bg, onBackground = TextPrimary,
             surface = CardHi, onSurface = TextPrimary, onSurfaceVariant = TextSecondary,
         )

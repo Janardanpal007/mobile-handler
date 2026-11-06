@@ -96,3 +96,24 @@ ChatGPT reviewed the APK and a screen recording and wrote an Apple-inspired brie
 - **PDF Studio** (ChatGPT's "Document Studio"; was "PDF Reader"): Open a PDF, Create (Scan, Photos → PDF, Word, Excel), the six PDF tools as tiles, recent PDFs with a filter. In the editor: **Find text** (⋮ menu) lists every line with the words and jumps to the page.
 - **Already there before the brief:** page thumbnails, rotate, reorder, delete and add pages; text editing; signatures, stamps, watermark, AES-256 password.
 - **Not done (needs real work, not faked):** OCR for scanned PDFs, true redaction, form filling, bookmarks, printing, PDF → images.
+
+## Navigation fix and safe Office saving (ChatGPT "App Redesign Blueprint", 6 Nov 2026)
+ChatGPT saw that PDF Studio still bundled PDF, Word and Excel behind tabs and asked for a navigation refactor, with
+Word/Excel data loss fixed first.
+- **Word / Excel saving (done first):** opened files are now saved by patching the original package. Word keeps every
+  part of the file and every body block that wasn't edited, byte for byte; tables, pictures and paragraphs with links or
+  fields are shown read-only. Excel rewrites only the edited cells (keeping their styles) and adds new sheets as new
+  parts; merged cells, charts, number formats and other sheets stay, and Excel recalculates on open. Shared
+  (filled-down) formulas are read as real formulas. When a change can't be kept (array formula, renamed sheet), the
+  app saves a separate copy and never touches the original. Files are built in memory before anything is written.
+  Checked with 10 round-trip tests on files made in Microsoft Word / Excel, and by opening the saved files in Word and
+  Excel 16 (no repair prompt; picture, table, link, header, chart, merged cells and formats intact).
+- **Separate tools:** PDF Editor, Word Editor and Excel Editor are each their own tool (no more PDF / Word / Excel
+  tabs). Word and Excel list recently opened files.
+- **Home:** greeting with Sparky and a Settings button, one "Ask Sparky or find a tool" bar (the Ask card is gone),
+  four compact quick actions, PDF / Word / Excel shortcuts, a compact "More tools" grid, recent files.
+  Bottom bar: **Home · Tools · Files · Ask**. Shizuku's status moved to the Phone Care section of Tools.
+- **Colours:** back to coral and mint (dark #101512 / #1B231E / #29332C, coral #FF806B, mint #BDE5B2; light
+  porcelain with coral #B84432), replacing the blue look; text on coral is near-black in dark mode so it stays readable.
+- **Still to do from the brief:** Word tables / images / find-and-replace / undo; Excel sort, filter, charts and
+  row/column tools; PDF bookmarks, forms, OCR, real redaction, printing.

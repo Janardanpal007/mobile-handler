@@ -235,7 +235,7 @@ private fun UpdatesGroup(index: Int) {
             )
         }
         Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (available != null) Pill("Download update", Accent, Color.White) { Updates.download(ctx, available) }
+            if (available != null) Pill("Download update", Accent, OnAccent) { Updates.download(ctx, available) }
             Pill(if (checking) "Checking…" else "Check for updates", if (available != null) Card else Charcoal, if (available != null) TextPrimary else Color.White, enabled = !checking) {
                 checking = true
                 scope.launch { result = Updates.check(ctx); checking = false }

@@ -7,7 +7,6 @@ import java.io.OutputStream
 import java.math.BigDecimal
 import java.math.MathContext
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.abs
 
@@ -16,12 +15,19 @@ data class CellRef(val col: Int, val row: Int) {
     val name get() = Formula.colName(col) + row
 }
 
-/** One sheet: what was typed in each cell (numbers, text, or formulas starting with "="). */
-data class SheetData(val name: String, val cells: Map<CellRef, String>)
+/**
+ * One sheet: what was typed in each cell (numbers, text, or formulas starting with "=").
+ * [part] is where the sheet lives inside an opened .xlsx file (null for a new sheet).
+ */
+data class SheetData(val name: String, val cells: Map<CellRef, String>, val part: String? = null)
+
+/** An opened workbook: its sheets, plus the original file so saving can keep what the editor doesn't show. */
+class Workbook(val sheets: List<SheetData>, val source: Sheets.Source? = null)
 
 /**
  * Spreadsheets: reads and writes Excel .xlsx (several sheets) and .csv, and works out formulas.
- * Cell styles, charts and merged cells in an opened file are not kept.
+ * Saving an opened .xlsx changes only the edited cells and keeps everything else (styles, merged cells, charts,
+ * pictures, other sheets) as it was; see [XlsxSave].
  */
 object Sheets {
 
@@ -126,14 +132,14 @@ object Sheets {
 
     // ---------------------------------------------------------------- XLSX
 
-    fun readXlsx(input: InputStream): List<SheetData> {
-        val files = mutableMapOf<String, ByteArray>()
-        ZipInputStream(input).use { zip ->
-            while (true) {
-                val e = zip.nextEntry ?: break
-                if (e.name.endsWith(".xml") || e.name.endsWith(".rels")) files[e.name.removePrefix("/")] = zip.readBytes()
-            }
-        }
+    /** The opened file and each sheet's cells as they were read, to tell later which cells were edited. */
+    class Source(val pack: Ooxml.Package, val original: Map<String, SheetData>)
+
+    fun readXlsx(input: InputStream): List<SheetData> = readWorkbook(input).sheets
+
+    fun readWorkbook(input: InputStream): Workbook {
+        val pack = Ooxml.readPackage(input)
+        val files = pack.parts.toMap()
         val workbook = files["xl/workbook.xml"] ?: throw IllegalArgumentException("This isn't an Excel .xlsx file.")
         val targets = mutableMapOf<String, String>()
         files["xl/_rels/workbook.xml.rels"]?.let { rels ->
@@ -151,11 +157,40 @@ object Sheets {
                 val name = p.attr("name") ?: "Sheet${sheets.size + 1}"
                 val rid = (0 until p.attributeCount).firstOrNull { p.getAttributeName(it).endsWith(":id") }?.let { p.getAttributeValue(it) }
                 val path = targets[rid] ?: "xl/worksheets/sheet${sheets.size + 1}.xml"
-                files[path]?.let { sheets += SheetData(name, sheetCells(it, shared)) }
+                // Chart sheets have no cells; they stay in the file untouched.
+                if (!path.contains("chartsheets/")) files[path]?.let { sheets += SheetData(name, sheetCells(it, shared), path) }
             }
         }
-        return sheets.ifEmpty { listOf(SheetData("Sheet1", emptyMap())) }
+        if (sheets.isEmpty()) return Workbook(listOf(SheetData("Sheet1", emptyMap())))
+        return Workbook(sheets, Source(pack, sheets.associateBy { it.part!! }))
     }
+
+    /**
+     * Saves a workbook as .xlsx. An opened file keeps everything that wasn't edited, or throws
+     * [XlsxSave.CantKeep] when that isn't possible; use [writeXlsx] to write a fresh, simple copy instead.
+     */
+    fun writeWorkbook(book: Workbook, out: OutputStream) {
+        val source = book.source
+        out.write(if (source != null) XlsxSave.patched(book.sheets, source).toBytes() else xlsxBytes(book.sheets))
+    }
+
+    /** True when saving can keep everything in the opened file (always true for a new workbook). */
+    fun keepsEverything(book: Workbook): Boolean =
+        book.source?.let { src -> runCatching { XlsxSave.patched(book.sheets, src) }.isSuccess } ?: true
+
+    private val CELL_IN_FORMULA = Regex("""(?<![A-Za-z_\d.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])""")
+
+    /** Moves the relative cell references in a formula, like Excel does when it copies a formula to another cell. */
+    fun shiftRefs(formula: String, dCol: Int, dRow: Int): String =
+        // Text in quotes is left alone; references are only outside quotes (the even-numbered pieces).
+        formula.split('"').mapIndexed { i, piece ->
+            if (i % 2 == 1) piece else CELL_IN_FORMULA.replace(piece) { m ->
+                val (colAbs, letters, rowAbs, digits) = m.destructured
+                val c = if (colAbs.isEmpty()) Formula.colIndex(letters) + dCol else Formula.colIndex(letters)
+                val r = if (rowAbs.isEmpty()) digits.toInt() + dRow else digits.toInt()
+                if (c < 1 || r < 1) m.value else colAbs + Formula.colName(c) + rowAbs + r
+            }
+        }.joinToString("\"")
 
     private fun sharedStrings(xml: ByteArray): List<String> {
         val out = mutableListOf<String>()
@@ -188,6 +223,9 @@ object Sheets {
         val p = parser(xml)
         var row = 0; var col = 0
         var type: String? = null
+        // Excel stores a formula filled across cells once ("shared"); the other cells point back to it by number.
+        val sharedMasters = mutableMapOf<String, Pair<CellRef, String>>()
+        var sharedId: String? = null
         var formula = StringBuilder(); var value = StringBuilder(); var inline = StringBuilder()
         var inF = false; var inV = false; var inT = false
         while (p.next() != XmlPullParser.END_DOCUMENT) {
@@ -198,9 +236,9 @@ object Sheets {
                         val m = p.attr("r")?.let { REF.matchEntire(it) }
                         if (m != null) { col = Formula.colIndex(m.groupValues[1]); row = m.groupValues[2].toInt() } else col++
                         type = p.attr("t")
-                        formula = StringBuilder(); value = StringBuilder(); inline = StringBuilder()
+                        formula = StringBuilder(); value = StringBuilder(); inline = StringBuilder(); sharedId = null
                     }
-                    "f" -> inF = true
+                    "f" -> { inF = true; if (p.attr("t") == "shared") sharedId = p.attr("si") }
                     "v" -> inV = true
                     "t" -> inT = true
                 }
@@ -216,7 +254,13 @@ object Sheets {
                     "c" -> {
                         val v = value.toString()
                         val text = when {
-                            formula.isNotBlank() -> "=" + formula.toString()
+                            formula.isNotBlank() -> {
+                                sharedId?.let { sharedMasters.putIfAbsent(it, CellRef(col, row) to formula.toString()) }
+                                "=" + formula.toString()
+                            }
+                            sharedId != null && sharedMasters[sharedId] != null -> sharedMasters.getValue(sharedId!!).let { (at, f) ->
+                                "=" + shiftRefs(f, col - at.col, row - at.row)
+                            }
                             type == "s" -> v.toIntOrNull()?.let { shared.getOrNull(it) }.orEmpty()
                             type == "inlineStr" -> inline.toString()
                             type == "b" -> if (v == "1") "TRUE" else "FALSE"
@@ -230,8 +274,12 @@ object Sheets {
         return cells
     }
 
-    fun writeXlsx(sheets: List<SheetData>, out: OutputStream) {
-        ZipOutputStream(out).use { zip ->
+    /** Writes a fresh .xlsx with values and formulas only (no styles). */
+    fun writeXlsx(sheets: List<SheetData>, out: OutputStream) = out.write(xlsxBytes(sheets))
+
+    private fun xlsxBytes(sheets: List<SheetData>): ByteArray {
+        val buf = java.io.ByteArrayOutputStream()
+        ZipOutputStream(buf).use { zip ->
             fun put(name: String, content: String) {
                 zip.putNextEntry(ZipEntry(name))
                 zip.write(content.toByteArray(Charsets.UTF_8))
@@ -254,12 +302,13 @@ object Sheets {
             put("xl/styles.xml", head + STYLES)
             sheets.forEachIndexed { i, s -> put("xl/worksheets/sheet${i + 1}.xml", head + sheetXml(s)) }
         }
+        return buf.toByteArray()
     }
 
-    private fun safeSheetName(name: String, i: Int) =
+    internal fun safeSheetName(name: String, i: Int) =
         name.replace(Regex("[\\[\\]:*?/\\\\]"), " ").trim().take(31).ifEmpty { "Sheet${i + 1}" }
 
-    private fun sheetXml(sheet: SheetData) = buildString {
+    internal fun sheetXml(sheet: SheetData) = buildString {
         val eval = Evaluator { sheet.cells[it] }
         append("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""")
         sheet.cells.filterValues { it.isNotEmpty() }.keys.groupBy { it.row }.toSortedMap().forEach { (r, refs) ->

@@ -109,8 +109,9 @@ class DocxTest {
         val out = ByteArrayOutputStream()
         Docx.write(doc, out)
         val back = Docx.read(out.toByteArray().inputStream())
-        assertEquals(doc.paras, back.paras)
-        assertEquals(false, back.lostContent)
+        assertEquals(doc.paras, back.paras.map { it.copy(origin = null) })
+        assertTrue(back.paras.all { it.unchanged })
+        assertEquals(false, back.hasLocked)
     }
 
     @Test fun readsWordFileFromAnotherApp() {
@@ -125,7 +126,7 @@ class DocxTest {
         assertEquals(Docx.Style.NUMBERED, p[4].style)
         assertEquals(Docx.Align.CENTER, p[5].align)
         assertEquals("Centred & <special> text", p[5].text)
-        // The table is shown as text and flagged, so the editor can warn before saving.
-        assertTrue(doc.lostContent)
+        // The table is kept as it is and shown locked.
+        assertTrue(doc.hasLocked)
     }
 }

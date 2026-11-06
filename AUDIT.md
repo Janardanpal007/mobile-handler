@@ -86,12 +86,12 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 
 **Word** (`ui/WordScreen.kt`, `data/Docx.kt`)
 - New document or open a `.docx`; title, heading 1/2, text, bullet and numbered lists, bold/italic/underline, left/centre/right; Save, Save as, Share; asks before leaving with unsaved changes.
-- Limits: pictures, tables, headers/footers and footnotes in a file you open are not kept when you save (a banner warns you); fonts and colours are not kept.
+- Saving an opened file changes only the edited paragraphs; everything else in the file is kept byte for byte (pictures, tables, links, fields, headers/footers, footnotes, styles). Tables, pictures and paragraphs with links or fields are shown read-only. An edited paragraph keeps its font, size and colour; mixed formatting inside it becomes one style.
 
 **Excel** (`ui/SheetScreen.kt`, `data/Sheets.kt`, `data/Formula.kt`)
 - New sheet or open `.xlsx` / `.csv`; formula bar, AutoSum and function chips, tap a cell to insert its reference while typing a formula, several sheets; save as `.xlsx` (formulas with their results) or `.csv`.
 - Errors shown like Excel: `#DIV/0!`, `#NAME?`, `#VALUE!`, `#REF!`, `#NUM!`, plus `#CYCLE!` for circular references.
-- Limits: cell formatting, column widths, merged cells and charts are not kept; CSV saves values only.
+- Saving an opened .xlsx rewrites only the edited cells (each keeps its style); formatting, column widths, merged cells, charts and other sheets are kept, and Excel recalculates on open. If a change can't be kept safely (an array formula, a renamed sheet), the app saves a separate simple copy and leaves the original untouched. CSV saves values only.
 
 **Calculator** (`ui/CalculatorScreen.kt`, `ui/CalculatorModes.kt`, `overlay/FloatingCalcService.kt`)
 - Tabs: Basic (iPhone-style), Scientific (sin/cos/tan, ln/log, √, xʸ, x!, π, e, Ans, Deg/Rad), Finance (Loan EMI, SIP, compound interest, GST add/remove with CGST/SGST), Currency.

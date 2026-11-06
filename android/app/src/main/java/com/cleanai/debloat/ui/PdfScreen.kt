@@ -194,14 +194,13 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
         openPdf = { start -> startWith = start; choose(null) },
         pdfTool = { t -> if (t == PdfTool.MERGE) merging.clear(); choose(t) },
         openTool = openTool,
-        startTool = { id, action -> ToolStart.set(id, action); openTool(id) },
         openDoc = { doc -> startWith = EditorStart.READ; open = Uri.fromFile(doc.pdf) },
         showAllTools = { allTools = true },
     )
     BackHandler(enabled = tool != null || allTools) { back() }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
         ScreenTopBar(
-            when { tool == PdfTool.MERGE -> "Merge PDFs"; allTools -> "All tools"; else -> "PDF Studio" },
+            when { tool == PdfTool.MERGE -> "Merge PDFs"; allTools -> "All tools"; else -> "PDF Editor" },
             onBack = { back() },
         )
         Column(

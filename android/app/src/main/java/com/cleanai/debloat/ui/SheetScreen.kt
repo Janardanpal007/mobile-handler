@@ -65,21 +65,24 @@ import androidx.compose.ui.unit.sp
 import com.cleanai.debloat.data.CellRef
 import com.cleanai.debloat.data.Formula
 import com.cleanai.debloat.data.PdfEdit
+import com.cleanai.debloat.data.RecentDocs
 import com.cleanai.debloat.data.SheetData
+import com.cleanai.debloat.data.Workbook
 import com.cleanai.debloat.data.Sheets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 private const val XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 private val CellW = 96.dp
 private val CellH = 36.dp
 private val HeadW = 44.dp
 
-private class SheetState(name: String, cells: Map<CellRef, String>) {
+private class SheetState(name: String, cells: Map<CellRef, String>, val part: String? = null) {
     var name by mutableStateOf(name)
     val cells = mutableStateMapOf<CellRef, String>().apply { putAll(cells) }
-    fun data() = SheetData(name, cells.toMap())
+    fun data() = SheetData(name, cells.toMap(), part)
 }
 
 /** Spreadsheets: open and edit Excel .xlsx and .csv files, with formulas like =SUM(A1:A9). */
@@ -94,6 +97,11 @@ fun SheetScreen(onBack: () -> Unit) {
     var name by remember { mutableStateOf("Spreadsheet.xlsx") }
     var csv by remember { mutableStateOf(false) }
     var dirty by remember { mutableStateOf(false) }
+    // The opened .xlsx, so saving keeps its styles, merged cells, charts and other sheets.
+    var source by remember { mutableStateOf<Sheets.Source?>(null) }
+    // Set when saving can't keep everything in the opened file: the changes then go to a separate, simpler copy.
+    var simpleCopy by remember { mutableStateOf(false) }
+    var askCopy by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var version by remember { mutableIntStateOf(0) }
@@ -104,7 +112,7 @@ fun SheetScreen(onBack: () -> Unit) {
 
     fun load(data: List<SheetData>) {
         sheets.clear()
-        data.forEach { sheets += SheetState(it.name, it.cells) }
+        data.forEach { sheets += SheetState(it.name, it.cells, it.part) }
         current = 0
         selected = CellRef(1, 1)
         draft = TextFieldValue(sheets[0].cells[selected].orEmpty())
@@ -113,15 +121,29 @@ fun SheetScreen(onBack: () -> Unit) {
         editing = true
     }
 
+    fun book() = Workbook(sheets.map { it.data() }, source)
+
+    // The whole file is made first; only then is the old one replaced, so a failed save never leaves it half-written.
     fun write(target: Uri, asCsv: Boolean): Boolean = runCatching {
-        (ctx.contentResolver.openOutputStream(target, "wt") ?: error("no stream")).use { out ->
-            if (asCsv) Sheets.writeCsv(sheets[current].data(), out) else Sheets.writeXlsx(sheets.map { it.data() }, out)
+        val buf = ByteArrayOutputStream()
+        when {
+            asCsv -> Sheets.writeCsv(sheets[current].data(), buf)
+            simpleCopy -> Sheets.writeXlsx(sheets.map { it.data() }, buf)
+            // Saving into a different file than the one opened: if the original's extras can't all be kept,
+            // that new file gets the simpler form; the opened file itself is never touched.
+            target != uri && !Sheets.keepsEverything(book()) -> { simpleCopy = true; Sheets.writeXlsx(sheets.map { it.data() }, buf) }
+            else -> Sheets.writeWorkbook(book(), buf)
         }
+        val bytes = buf.toByteArray()
+        (ctx.contentResolver.openOutputStream(target, "wt") ?: error("no stream")).use { it.write(bytes) }
     }.isSuccess
 
     fun saved(ok: Boolean, target: Uri, asCsv: Boolean) {
         if (ok) {
             uri = target; csv = asCsv; name = PdfEdit.displayName(ctx, target); dirty = false
+            RecentDocs.add(ctx, RecentDocs.Kind.EXCEL, target, name)
+            // A simple copy (or a CSV) has none of the original's extras left to keep.
+            if (simpleCopy || asCsv) { source = null; simpleCopy = false }
             Toast.makeText(ctx, "Saved $name", Toast.LENGTH_SHORT).show()
         } else Toast.makeText(ctx, "⚠️ Couldn't save there. Try another folder.", Toast.LENGTH_SHORT).show()
     }
@@ -138,57 +160,57 @@ fun SheetScreen(onBack: () -> Unit) {
         val target = uri
         if (target == null) { saveXlsx.launch("$base.xlsx"); return }
         scope.launch {
+            if (!csv && !withContext(Dispatchers.IO) { Sheets.keepsEverything(book()) }) { askCopy = true; return@launch }
             val ok = withContext(Dispatchers.IO) { write(target, csv) }
             if (ok) { dirty = false; Toast.makeText(ctx, if (csv) "Saved (CSV keeps values, not formulas)" else "Saved", Toast.LENGTH_SHORT).show() }
             else if (csv) saveCsv.launch("$base.csv") else saveXlsx.launch("$base.xlsx")
         }
     }
 
-    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked ->
-        if (picked == null) return@rememberLauncherForActivityResult
+    fun openUri(picked: Uri) {
         val fileName = PdfEdit.displayName(ctx, picked)
         scope.launch {
             val isCsv = fileName.endsWith(".csv", true) || fileName.endsWith(".txt", true) || fileName.endsWith(".tsv", true)
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    ctx.contentResolver.openInputStream(picked)!!.use { if (isCsv) listOf(Sheets.readCsv(it)) else Sheets.readXlsx(it) }
+                    ctx.contentResolver.openInputStream(picked)!!.use { if (isCsv) Workbook(listOf(Sheets.readCsv(it))) else Sheets.readWorkbook(it) }
                 }
             }
             result.onSuccess {
-                uri = picked; name = fileName; csv = isCsv
-                load(it)
+                uri = picked; name = fileName; csv = isCsv; source = it.source; simpleCopy = false
+                RecentDocs.add(ctx, RecentDocs.Kind.EXCEL, picked, fileName)
+                load(it.sheets)
             }.onFailure {
+                // A file that has moved or been deleted drops off the recent list.
+                RecentDocs.remove(ctx, RecentDocs.Kind.EXCEL, picked)
                 Toast.makeText(ctx, "Couldn't open this file. Excel .xlsx and .csv files are supported (not old .xls).", Toast.LENGTH_LONG).show()
             }
         }
     }
 
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked -> picked?.let(::openUri) }
+
     fun newSheet() {
-        uri = null; name = "Spreadsheet.xlsx"; csv = false
+        uri = null; name = "Spreadsheet.xlsx"; csv = false; source = null; simpleCopy = false
         load(listOf(SheetData("Sheet1", emptyMap())))
     }
     fun openSheet() = open.launch(arrayOf(XLSX, "text/csv", "text/comma-separated-values", "text/plain", "application/octet-stream"))
-    // Sent here from PDF Studio for one job: do it straight away.
-    LaunchedEffect(Unit) {
-        when (ToolStart.take("excel")) {
-            ToolStart.Action.NEW -> newSheet()
-            ToolStart.Action.OPEN -> openSheet()
-            null -> Unit
-        }
-    }
 
+    val recents = remember(editing) { RecentDocs.list(ctx, RecentDocs.Kind.EXCEL) }
     if (!editing) {
         Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
-            ScreenTopBar("Excel", onBack)
+            ScreenTopBar("Excel Editor", onBack)
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 BigAction("New spreadsheet", "Rows, columns and formulas") { newSheet() }
                 ToolRow("Open a spreadsheet", "Excel .xlsx or .csv from your phone, Drive or Downloads") { openSheet() }
+                RecentDocsList("Recent spreadsheets", recents) { openUri(it.uri) }
                 Text(
                     "Formulas: + − * / ^ %, cell references like A1 and ranges like A1:B9, and SUM, AVERAGE, MIN, MAX, COUNT, PRODUCT, IF, AND, OR, ROUND, ABS, SQRT, POWER, MOD. " +
-                        "Saved .xlsx files open in Excel, Google Sheets and LibreOffice. Colours, charts and merged cells in a file you open are not kept.",
+                        "Saved .xlsx files open in Excel, Google Sheets and LibreOffice. In a file you open, only the cells you change are rewritten: " +
+                        "colours, number formats, merged cells, charts and other sheets stay as they are.",
                     color = TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp),
                 )
             }
@@ -253,7 +275,7 @@ fun SheetScreen(onBack: () -> Unit) {
             subtitle = if (dirty) "Not saved" else if (csv) "CSV" else "Excel",
             action = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PillButton("Save", Accent, Color.White) { commit(); save() }
+                    PillButton("Save", Accent, OnAccent) { commit(); save() }
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
@@ -354,6 +376,20 @@ fun SheetScreen(onBack: () -> Unit) {
             text = { Text("Your changes to $name aren't saved yet.") },
             confirmButton = { TextButton(onClick = { leaving = false; save() }) { Text("Save") } },
             dismissButton = { TextButton(onClick = { leaving = false; dirty = false; editing = false }) { Text("Discard") } },
+        )
+    }
+    if (askCopy) {
+        AlertDialog(
+            onDismissRequest = { askCopy = false },
+            title = { Text("Save as a new copy?") },
+            text = {
+                Text(
+                    "This change can't be saved into $name without losing some of its formatting or formulas. " +
+                        "Your changes will go into a new, simpler copy (values and formulas only), and $name stays exactly as it is.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { askCopy = false; simpleCopy = true; saveXlsx.launch("$base (edited).xlsx") }) { Text("Save copy") } },
+            dismissButton = { TextButton(onClick = { askCopy = false }) { Text("Cancel") } },
         )
     }
 }

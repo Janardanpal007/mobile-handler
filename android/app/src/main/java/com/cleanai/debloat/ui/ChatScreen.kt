@@ -355,7 +355,7 @@ private fun ChoiceList(msg: ChoicesMsg, onPick: (Choice) -> Unit) {
 private fun RecommendedTag(small: Boolean = false) {
     Text(
         if (small) "★" else "★ Recommended",
-        color = Color.White,
+        color = OnAccent,
         fontSize = if (small) 10.sp else 11.sp,
         fontWeight = FontWeight.Bold,
         modifier = Modifier

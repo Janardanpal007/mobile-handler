@@ -170,7 +170,7 @@ private fun LinkGroup(links: List<AboutLink>, onOpen: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
-                    Text(link.name.take(1), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(link.name.take(1), color = OnAccent, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {

@@ -66,6 +66,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -74,9 +75,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cleanai.debloat.data.Docx
 import com.cleanai.debloat.data.PdfEdit
+import com.cleanai.debloat.data.RecentDocs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 private const val DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
@@ -113,7 +116,8 @@ fun WordScreen(onBack: () -> Unit) {
     var uri by remember { mutableStateOf<Uri?>(null) }
     var name by remember { mutableStateOf("Document.docx") }
     var dirty by remember { mutableStateOf(false) }
-    var lost by remember { mutableStateOf(false) }
+    // The opened file, so saving keeps its tables, pictures and everything else that wasn't edited.
+    var source by remember { mutableStateOf<Docx.Source?>(null) }
     var focused by remember { mutableStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -121,7 +125,10 @@ fun WordScreen(onBack: () -> Unit) {
     var focusNext by remember { mutableStateOf<Long?>(null) }
 
     // Empty paragraphs left at the end of the editor aren't worth saving.
-    fun current() = Docx.Document(blocks.map { it.para }.dropLastWhile { it.text.isBlank() }.ifEmpty { listOf(blocks.first().para) })
+    fun current() = Docx.Document(
+        blocks.map { it.para }.dropLastWhile { it.text.isBlank() && it.origin == null && it.locked == null }.ifEmpty { listOf(blocks.first().para) },
+        source,
+    )
 
     fun load(paras: List<Docx.Para>) {
         blocks.clear()
@@ -131,15 +138,17 @@ fun WordScreen(onBack: () -> Unit) {
         editing = true
     }
 
+    // The whole file is made first; only then is the old one replaced, so a failed save never leaves it half-written.
     fun write(target: Uri): Boolean = runCatching {
-        (ctx.contentResolver.openOutputStream(target, "wt") ?: error("no stream")).use { Docx.write(current(), it) }
+        val bytes = ByteArrayOutputStream().also { Docx.write(current(), it) }.toByteArray()
+        (ctx.contentResolver.openOutputStream(target, "wt") ?: error("no stream")).use { it.write(bytes) }
     }.isSuccess
 
     val saveAs = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(DOCX)) { out ->
         if (out == null) return@rememberLauncherForActivityResult
         scope.launch {
             val ok = withContext(Dispatchers.IO) { write(out) }
-            if (ok) { uri = out; name = PdfEdit.displayName(ctx, out); dirty = false; lost = false }
+            if (ok) { uri = out; name = PdfEdit.displayName(ctx, out); dirty = false; RecentDocs.add(ctx, RecentDocs.Kind.WORD, out, name) }
             Toast.makeText(ctx, if (ok) "Saved $name" else "⚠️ Couldn't save there. Try another folder.", Toast.LENGTH_SHORT).show()
         }
     }
@@ -149,14 +158,13 @@ fun WordScreen(onBack: () -> Unit) {
         if (target == null) { saveAs.launch(name); return }
         scope.launch {
             val ok = withContext(Dispatchers.IO) { write(target) }
-            if (ok) { dirty = false; lost = false; Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show() }
+            if (ok) { dirty = false; Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show() }
             // Some apps only let us read the file; save a copy instead.
             else saveAs.launch(name)
         }
     }
 
-    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked ->
-        if (picked == null) return@rememberLauncherForActivityResult
+    fun openUri(picked: Uri) {
         scope.launch {
             val doc = withContext(Dispatchers.IO) {
                 runCatching { ctx.contentResolver.openInputStream(picked)!!.use { Docx.read(it) } }
@@ -164,40 +172,39 @@ fun WordScreen(onBack: () -> Unit) {
             doc.onSuccess {
                 uri = picked
                 name = PdfEdit.displayName(ctx, picked)
-                lost = it.lostContent
+                source = it.source
+                RecentDocs.add(ctx, RecentDocs.Kind.WORD, picked, name)
                 load(it.paras)
             }.onFailure {
+                // A file that has moved or been deleted drops off the recent list.
+                RecentDocs.remove(ctx, RecentDocs.Kind.WORD, picked)
                 Toast.makeText(ctx, "Couldn't open this file. Only Word .docx files are supported (not old .doc).", Toast.LENGTH_LONG).show()
             }
         }
     }
 
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { picked -> picked?.let(::openUri) }
+
     fun newDocument() {
-        uri = null; name = "Document.docx"; lost = false
+        uri = null; name = "Document.docx"; source = null
         load(listOf(Docx.Para(listOf(Docx.Run("")), Docx.Style.TITLE), Docx.Para(listOf(Docx.Run("")))))
     }
     fun openDocument() = open.launch(arrayOf(DOCX, "application/octet-stream"))
-    // Sent here from PDF Studio for one job: do it straight away.
-    LaunchedEffect(Unit) {
-        when (ToolStart.take("word")) {
-            ToolStart.Action.NEW -> newDocument()
-            ToolStart.Action.OPEN -> openDocument()
-            null -> Unit
-        }
-    }
 
+    val recents = remember(editing) { RecentDocs.list(ctx, RecentDocs.Kind.WORD) }
     if (!editing) {
         Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
-            ScreenTopBar("Word", onBack)
+            ScreenTopBar("Word Editor", onBack)
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 BigAction("New document", "Start writing a Word file") { newDocument() }
                 ToolRow("Open a Word file", "Edit a .docx from your phone, Drive or Downloads") { openDocument() }
+                RecentDocsList("Recent documents", recents) { openUri(it.uri) }
                 Text(
-                    "Keeps headings, lists, alignment and bold / italic / underline. Saved files open in Microsoft Word, Google Docs and LibreOffice. " +
-                        "Pictures and tables in a file you open are not kept when you save.",
+                    "Edit headings, lists, alignment and bold / italic / underline. Saved files open in Microsoft Word, Google Docs and LibreOffice. " +
+                        "In a file you open, tables, pictures, links, headers and footers are kept exactly as they are; they're shown in grey and can't be changed here.",
                     color = TextSecondary, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp),
                 )
             }
@@ -206,7 +213,7 @@ fun WordScreen(onBack: () -> Unit) {
     }
 
     BackHandler { if (dirty) leaving = true else editing = false }
-    val block = blocks.getOrNull(focused)
+    val block = blocks.getOrNull(focused)?.takeIf { it.para.locked == null }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
         ScreenTopBar(
             name.removeSuffix(".docx"),
@@ -214,7 +221,7 @@ fun WordScreen(onBack: () -> Unit) {
             subtitle = (if (dirty) "Not saved · " else "") + "${words(blocks)} words",
             action = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PillButton("Save", Accent, Color.White) { save() }
+                    PillButton("Save", Accent, OnAccent) { save() }
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
@@ -230,9 +237,9 @@ fun WordScreen(onBack: () -> Unit) {
                 }
             },
         )
-        if (lost) {
+        if (blocks.any { !it.para.locked.isNullOrEmpty() }) {
             Text(
-                "This file has pictures, tables or headers. They're shown as text here and won't be kept when you save.",
+                "Tables, pictures and links in this file are kept exactly as they are. They're shown in grey and can't be changed here.",
                 color = TextPrimary, fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Butter.copy(alpha = 0.5f)).padding(10.dp),
             )
@@ -249,6 +256,7 @@ fun WordScreen(onBack: () -> Unit) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 22.dp, vertical = 24.dp),
         ) {
             itemsIndexed(blocks, key = { _, b -> b.id }) { i, b ->
+                b.para.locked?.let { label -> KeptBlock(label, b.para.text); return@itemsIndexed }
                 val requester = focus.getOrPut(b.id) { FocusRequester() }
                 LaunchedEffect(focusNext) {
                     if (focusNext == b.id) { runCatching { requester.requestFocus() }; focusNext = null }
@@ -289,7 +297,7 @@ fun WordScreen(onBack: () -> Unit) {
                         dirty = true
                     },
                     onBackspaceAtStart = {
-                        if (i > 0) {
+                        if (i > 0 && blocks[i - 1].para.locked == null) {
                             // Backspace at the start joins this paragraph onto the one before.
                             val prev = blocks[i - 1]
                             val join = prev.para.text.length
@@ -446,3 +454,18 @@ internal fun shareFile(ctx: Context, uri: Uri, mime: String) {
     send.clipData = ClipData.newRawUri("", uri)
     runCatching { ctx.startActivity(Intent.createChooser(send, "Share")) }
 }
+
+/** A table, picture or other part of an opened file that is kept as it is; "" marks are invisible. */
+@Composable
+private fun KeptBlock(label: String, text: String) {
+    if (label.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFF0F1F3)).padding(10.dp)
+            .semantics(mergeDescendants = true) {},
+    ) {
+        Text("$label · kept as is", color = Color(0xFF6B7078), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        if (text.isNotBlank()) Text(text.take(KEPT_PREVIEW_CHARS), color = Color(0xFF3A3F47), fontSize = 14.sp, lineHeight = 20.sp)
+    }
+}
+
+private const val KEPT_PREVIEW_CHARS = 600
