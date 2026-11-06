@@ -23,6 +23,18 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0", "6 Nov 2026",
+        listOf(
+            "New look: Home with Sparky, quick actions you can change, and your PDF, Word and Excel editors",
+            "New bottom bar: Home, Tools, Files and Ask; Settings is at the top of Home",
+            "Word and Excel: saving keeps tables, pictures, links, charts and formatting from the file you opened",
+            "Word and Excel: reopen recent files in one tap",
+            "PDF Editor: new tool grid, recent PDFs with previews, and Find text",
+            "New About page with what's new, permissions and open-source licences",
+            "Private mode removed: weather, currency and web answers simply go online when you ask",
+        ),
+    ),
+    Release(
         "1.9", "4 Nov 2026",
         listOf(
             "PDF Editor: keep up to 6 signatures and sign with a tap",
