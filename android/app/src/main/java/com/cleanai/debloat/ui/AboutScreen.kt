@@ -49,15 +49,16 @@ import androidx.core.content.pm.PackageInfoCompat
 private val Policy = listOf(
     "Who we are" to
         "Mobile Handler is developed and maintained by $DEVELOPER. For questions about this app or this policy, contact the developer through the links above.",
-    "Private mode — on by default" to
-        "With Private mode on, the assistant, weather and currency send nothing to any company or website. Everything happens on your phone. " +
-        "The one exception is a once-a-day check on GitHub for a new version of the app, which you can stop by turning off update notifications in Settings.",
+    "On your phone first" to
+        "Scanning, PDFs, Word, Excel, notes, the calculator, the photo tools and the phone cleaner all work on your phone, without the internet.",
     "What stays on your phone" to
         "Your name, age and place, your installed-apps list, the changes you make, scanned QR codes, scanned documents, PDFs, calculator history and the chat. We have no account system and no server. Clear the chat any time from the Assistant or Settings.",
     "Camera and scanning" to
         "QR and document scanning run on the phone through Google Play services; Mobile Handler only receives the result.",
-    "Only if you turn Private mode off" to
-        "Then, and only when you use these features: questions go to DuckDuckGo, Wikipedia, GitHub or Stack Exchange; weather sends a city or rough location to Open-Meteo; and currency rates come from open.er-api.com.",
+    "When the app goes online" to
+        "Only when you use these features: questions go to DuckDuckGo, Wikipedia, GitHub or Stack Exchange; weather sends a city or rough location to Open-Meteo; " +
+        "currency rates come from open.er-api.com. About once a day the app also asks GitHub whether a new version is out (turn off update notifications in Settings to stop it). " +
+        "Nothing about you is sent with any of these.",
     "Ad blocker" to
         "The ad blocker works by setting your phone's Private DNS to a provider you choose (AdGuard or Mullvad). Like any DNS service, that provider sees the website names your phone looks up. It is off unless you turn it on.",
     "Your control" to
@@ -121,7 +122,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 }
                 Text("Sparky's pictures were made with ChatGPT image generation.", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
             }
-            Folding("Privacy policy", "Private mode is on by default") {
+            Folding("Privacy policy", "No account, no ads, no tracking") {
                 Policy.forEachIndexed { i, (title, body) ->
                     if (i > 0) Spacer(Modifier.height(10.dp))
                     Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)

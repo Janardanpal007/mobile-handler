@@ -14,7 +14,6 @@ import android.os.Bundle
 import android.provider.Settings
 import com.cleanai.debloat.data.Currency
 import com.cleanai.debloat.data.MyFiles
-import com.cleanai.debloat.data.Privacy
 import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -94,14 +93,6 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { greet() }
     }
 
-    /** Private mode (default on): nothing is sent to any company or website. */
-    var privateMode by mutableStateOf(prefs.getBoolean("private_mode", true)); private set
-
-    fun updatePrivateMode(on: Boolean) {
-        privateMode = on
-        Privacy.allowOnline = !on
-        prefs.edit().putBoolean("private_mode", on).apply()
-    }
 
     private var scan: ScanResult? = null
     private var plan: List<Pair<FoundApp, Decision>> = emptyList()
@@ -118,7 +109,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
-        Privacy.allowOnline = !privateMode
+        prefs.edit().remove("private_mode").apply() // the old Private mode switch is gone
         Shizuku.addBinderReceivedListenerSticky(binderListener)
         Shizuku.addBinderDeadListener(deadListener)
         Shizuku.addRequestPermissionResultListener(permissionListener)
@@ -252,8 +243,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 "\"Scan a QR\", \"scan a document\", \"make a PDF\", \"open calculator\".",
                 "\"Merge PDFs\", \"open Word\", \"new spreadsheet\", \"make a note\", \"loan EMI\", \"floating calculator\".",
                 "\"What is 25 x 4\", \"what's the time\", \"clear chat\", \"open settings\".",
-                if (privateMode) "🔒 Private mode is on: everything stays on this phone."
-                else "🌐 Online mode: weather, currency and web tips are on.",
+                "Weather, currency rates and web tips use the internet when you ask for them.",
             ),
             think = 500,
         )
@@ -306,9 +296,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             "To manage preinstalled apps without root I use Shizuku, a free open-source helper. " +
                 "I'll walk you through setting it up on your ${phoneName()} — one step at a time.",
         )
-        if (privateMode) {
-            guide = SetupGuide.builtIn()
-        } else {
+        run {
             guide = SetupGuide.builtIn()
             say("Checking the internet for the latest ${brand()} tips…", think = 200)
             typing = true
@@ -341,7 +329,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 "and Android also stops it when Wireless debugging turns off or the phone restarts.",
         )
         typing = true
-        val live = if (privateMode) null else working { WebHelp.keepAliveSteps() }
+        val live = working { WebHelp.keepAliveSteps() }
         typing = false
         val steps = live ?: SetupGuide.builtIn().firstOrNull { it.title.startsWith("Keep Shizuku alive") }?.actions.orEmpty()
         say("To keep Shizuku running on your ${brand()}:", steps)
@@ -402,7 +390,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 )
             },
         )
-        if (!privateMode) webHelp(s.search ?: s.title, "Shizuku ${s.search ?: s.title} ${brand()} ${Build.MODEL}")
+        webHelp(s.search ?: s.title, "Shizuku ${s.search ?: s.title} ${brand()} ${Build.MODEL}")
         offerStepChoices()
     }
 
@@ -888,8 +876,6 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             prefs.edit().putString("user_name", name).apply()
             return say("Nice to meet you, $name! How can I help you?")
         }
-        if (privateMode && Regex("\\d\\s*[a-z₹$€£]+\\s+(to|in|into)\\s+[a-z]{3,}").containsMatchIn(t))
-            return needsInternet("Currency conversion")
         Currency.convert(text)?.let { return say(it) }
         Answers.calculate(text)?.let { return say(it) }
 
@@ -1022,7 +1008,6 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun weather(asked: String?) {
-        if (privateMode) return needsInternet("Weather")
         // No city said: use the place from your profile before asking for location.
         val city = asked ?: userPlace.takeIf { it.isNotBlank() }
         if (city == null && ctx.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -1085,14 +1070,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Searches the web (no API key needed) and offers the most helpful results as buttons. */
-    /** Private mode blocks this feature: say so, and how to allow it. */
-    private suspend fun needsInternet(feature: String) {
-        say("$feature needs the internet. Private mode is on, so nothing leaves your phone. You can turn it off in Settings.")
-        offer(Choice("Open Settings", Act.OpenSettings), Choice("Back to menu", Act.Menu))
-    }
-
     private suspend fun webHelp(topic: String, searchQuery: String) {
-        if (privateMode) return needsInternet("Searching the web for help")
         say("Searching the web for ${brand()} users with the same problem…", think = 200)
         typing = true
         val tips = working { WebHelp.search(topic) }

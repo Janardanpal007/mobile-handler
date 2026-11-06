@@ -89,7 +89,7 @@ object Currency {
         else -> String.format(Locale.US, "%.4f", v).trimEnd('0').trimEnd('.')
     }
 
-    private fun get(url: String): JSONObject? = if (Privacy.blocked()) null else runCatching {
+    private fun get(url: String): JSONObject? = runCatching {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 10_000

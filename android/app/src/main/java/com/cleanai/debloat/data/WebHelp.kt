@@ -111,7 +111,7 @@ object WebHelp {
             .filter { it.length > 3 }
             .map { if (it.length > 220) it.take(217) + "…" else it }
 
-    private fun get(url: String): JSONObject? = if (Privacy.blocked()) null else runCatching {
+    private fun get(url: String): JSONObject? = runCatching {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 8_000

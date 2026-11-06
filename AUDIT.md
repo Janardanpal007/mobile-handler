@@ -26,10 +26,10 @@ Legend: ✅ works · 🟡 partly done · ❌ not started
 | 6 | **Photos → PDF** | ✅ | `data/PdfTools.kt` combines picked images (scaled, EXIF-rotated) into one PDF. | No page reordering/margins/page size options. |
 | 7 | **Scan QR** | ✅ | ML Kit code scanner (no camera permission). Handles links, Wi-Fi, text, copy/open. | Relies on Play services. No scan history. |
 | 8 | **Calculator** | ✅ (upgraded in 1.7) | iPhone-style basic calculator, Scientific, Finance (EMI, SIP, compound interest, GST) and Currency tabs, plus a floating calculator. | See "Office tools and calculator" below. |
-| 9 | **Weather** | ✅ | Open-Meteo current + 3-day forecast, by city name or coarse location. | Shown as chat text only; no dedicated screen. Needs internet (Private mode off). |
+| 9 | **Weather** | ✅ | Open-Meteo current + 3-day forecast, by city name or coarse location. | Shown as chat text only; no dedicated screen. Needs internet. |
 | 10 | **My Files** | 🟡 | Lists the app's own scans/PDFs/photos; open, share PDF, share images, delete. | Not a general file manager: no browsing of phone storage, rename, move, copy, search or sort. |
 
-Also present: first-run profile (name, age, place), Settings (theme, Private mode, Shizuku, restore, update check & notification, keep-alive help, clear chat), About & Privacy screen, in-app update checker against GitHub releases.
+Also present: first-run profile (name, age, place), Settings (theme, Shizuku, restore, update check & notification, keep-alive help, clear chat), About & Privacy screen, in-app update checker against GitHub releases.
 
 ## New features (requested) — current state
 
@@ -43,7 +43,7 @@ Also present: first-run profile (name, age, place), Settings (theme, Private mod
 | 16 | OCR / document processing | ❌ | ML Kit Text Recognition (on-device) or Tesseract (Apache-2.0). |
 | 17 | Image editing & conversion | ❌ | Crop/rotate/resize/convert can be done with Android APIs. |
 | 18 | Optional Smart Assistant | 🟡 | The rule-based assistant exists; an optional on-device/online model is not started. |
-| 19 | Settings, backup, privacy | 🟡 | Settings and Private mode exist; no backup/export of settings and files. `allowBackup=false`. |
+| 19 | Settings, backup, privacy | 🟡 | Settings exist (Private mode removed 6 Nov 2026 at the owner's request); no backup/export of settings and files. `allowBackup=false`. |
 | 20 | About section | ✅ | "Built by Janardan Pal", version, "Connect with me" with GitHub, LinkedIn and Discord links, privacy policy. |
 | 21 | Notes | ✅ | Text notes and checklists, colours, pins, tags, search, trash (30 days), notes locked with the phone's fingerprint/screen lock, share and Markdown export. Written for this app (inspired by Notesnook's feature list; no Notesnook code, which is GPL-3.0). |
 

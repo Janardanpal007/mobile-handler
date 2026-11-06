@@ -45,7 +45,7 @@ Also included: an iPhone-style **Calculator** with scientific and finance modes 
 
 - No sign-up, no ads, no analytics.
 - Photos, scans and files are processed on the phone.
-- **Private mode** (on by default) keeps the app fully offline.
+- Goes online only for weather, currency rates, web answers and update checks. Nothing about you is sent.
 - Removed apps can always be restored; a factory reset also brings everything back.
 
 ## Install
@@ -61,7 +61,7 @@ The QR and document scanners come from Google Play services, so the first scan m
 
 - Android 8.0 or newer (ARM phones)
 - Google Play services for the QR and document scanners
-- Internet only for weather, currency rates and setup tips (turn off Private mode)
+- Internet only for weather, currency rates, web tips and update checks
 
 ## Credits
 

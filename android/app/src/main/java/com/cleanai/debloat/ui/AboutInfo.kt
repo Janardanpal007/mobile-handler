@@ -53,7 +53,7 @@ val Changelog = listOf(
 
 /** Every permission in the app's manifest and why it is there. */
 val PermissionReasons = listOf(
-    "Internet" to "For weather, currency rates and web answers (only with Private mode off), and a once-a-day check on GitHub for a new version (turn off update notifications in Settings to stop it).",
+    "Internet" to "For weather, currency rates and web answers when you ask for them, and a once-a-day check on GitHub for a new version.",
     "Network state" to "To show which DNS your phone is using right now (\"What DNS am I using?\").",
     "Approximate location" to "Only when you ask for the weather without naming a city. Asked the first time you need it.",
     "Notifications" to "To tell you when a new version is out. You can turn this off in Settings.",

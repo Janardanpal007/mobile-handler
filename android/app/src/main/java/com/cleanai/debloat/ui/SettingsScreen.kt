@@ -105,22 +105,8 @@ fun SettingsScreen(
                 }
             }
 
-            Section("Privacy")
+            Section("Chat")
             Group(2) {
-                SettingRow(
-                    icon = R.drawable.ic_tool_shield, tint = Mint,
-                    title = "Private mode",
-                    subtitle = if (vm.privateMode) "On — nothing leaves your phone"
-                    else "Off — weather, currency and web tips use the internet",
-                    onClick = { vm.updatePrivateMode(!vm.privateMode) },
-                ) {
-                    Switch(
-                        checked = vm.privateMode,
-                        onCheckedChange = { vm.updatePrivateMode(it) },
-                        colors = SwitchDefaults.colors(checkedTrackColor = Ok, checkedThumbColor = Color.White),
-                    )
-                }
-                Divider()
                 SettingRow(
                     icon = R.drawable.ic_tool_assistant, tint = Accent,
                     title = "Clear chat history",
@@ -259,7 +245,7 @@ private fun UpdatesGroup(index: Int) {
         SettingRow(
             icon = null, tint = Color.Transparent,
             title = "Notify me about new versions",
-            subtitle = "Checks GitHub about once a day, even in Private mode. Nothing about you is sent.",
+            subtitle = "Checks GitHub about once a day. Nothing about you is sent.",
             onClick = null,
         ) {
             Switch(

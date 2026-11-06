@@ -69,7 +69,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.cleanai.debloat.data.Currency
-import com.cleanai.debloat.data.Privacy
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -660,8 +659,7 @@ private fun ColumnScope.CurrencyPad() {
         status = "Getting today's rates…"
         rates = Currency.rates(force)
         status = rates?.let { "Updated ${it.updatedText()}" }
-            ?: if (Privacy.blocked()) "🔒 Private mode is on. Live rates need the internet — turn it off in Settings."
-            else "No internet — couldn't get rates"
+            ?: "No internet — couldn't get rates"
     }
     LaunchedEffect(Unit) { load(false) }
 
