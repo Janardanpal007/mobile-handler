@@ -29,12 +29,18 @@ object MyFiles {
         }
         val hasPdf get() = pdf.exists()
         val created get() = dir.lastModified()
-        val title get() = "$kind · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(created))
+        /** The name the user gave it, if any. */
+        val name: String? get() = runCatching { File(dir, NAME_FILE).takeIf { it.exists() }?.readText()?.trim() }.getOrNull()?.ifEmpty { null }
+        val dateText: String get() = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(created))
+        val title get() = name ?: "$kind · $dateText"
         val sizeText: String get() {
-            val bytes = dir.listFiles().orEmpty().sumOf { it.length() }
+            val bytes = dir.listFiles().orEmpty().filter { it.isFile && it.name != NAME_FILE }.sumOf { it.length() }
             return if (bytes > 1_000_000) String.format(Locale.US, "%.1f MB", bytes / 1e6) else "${bytes / 1000} KB"
         }
     }
+
+    private const val NAME_FILE = "name.txt"
+    private const val NAMED_DIR = "named"
 
     private fun root(ctx: Context) = File(ctx.filesDir, "MyFiles").apply { mkdirs() }
 
@@ -55,6 +61,27 @@ object MyFiles {
     fun byPath(path: String): Doc? = File(path).takeIf { it.isDirectory }?.let { Doc(it) }
 
     fun delete(doc: Doc) = doc.dir.deleteRecursively()
+
+    /** Gives a document a name (already cleaned by FileNames.clean); it is used when opening and sharing it. */
+    fun rename(doc: Doc, name: String): Boolean = runCatching { File(doc.dir, NAME_FILE).writeText(name) }.isSuccess
+
+    /** The document behind a link this app made for its document.pdf, e.g. in the Assistant's "Share PDF". */
+    fun fromLink(ctx: Context, link: Uri): Doc? {
+        val parts = link.pathSegments
+        if (link.authority != "${ctx.packageName}.files" || parts.size < 3 || parts.last() != "document.pdf") return null
+        return File(root(ctx), parts[parts.size - 2]).takeIf { it.isDirectory }?.let { Doc(it) }
+    }
+
+    /** A link to the PDF that carries the document's name ("Rent agreement.pdf" rather than "document.pdf"). */
+    private fun pdfLink(ctx: Context, doc: Doc): Uri {
+        val name = doc.name ?: return uri(ctx, doc.pdf)
+        return runCatching {
+            val out = File(doc.dir, NAMED_DIR).apply { deleteRecursively(); mkdirs() }
+            val copy = File(out, "$name.pdf")
+            doc.pdf.copyTo(copy, overwrite = true)
+            uri(ctx, copy)
+        }.getOrElse { uri(ctx, doc.pdf) }
+    }
 
     private fun uri(ctx: Context, f: File): Uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
 
@@ -88,7 +115,7 @@ object MyFiles {
             }
             return
         }
-        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri(ctx, doc.pdf), "application/pdf")
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(pdfLink(ctx, doc), "application/pdf")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             ctx.startActivity(view)
@@ -98,7 +125,7 @@ object MyFiles {
     }
 
     fun sharePdf(ctx: Context, doc: Doc) {
-        val u = uri(ctx, doc.pdf)
+        val u = pdfLink(ctx, doc)
         val send = Intent(Intent.ACTION_SEND).setType("application/pdf")
             .putExtra(Intent.EXTRA_STREAM, u)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

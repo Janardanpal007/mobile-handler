@@ -1,5 +1,7 @@
 package com.cleanai.debloat.ui
 
+import com.cleanai.debloat.data.FileNames
+import com.cleanai.debloat.data.MyFiles
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -221,6 +223,8 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
     var startDone by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf<NameAsk?>(null) }
+    var renamedTimes by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf<String?>(null) }
     var askCopy by remember { mutableStateOf(false) }
 
@@ -229,7 +233,7 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
     val pagePx = remember { mutableStateMapOf<Long, IntSize>() }
     val pictures = remember { mutableStateMapOf<String, ImageBitmap>() }
     val list = rememberLazyListState()
-    val name = remember(fileUri) { PdfEdit.displayName(ctx, fileUri) }
+    val name = remember(fileUri, renamedTimes) { PdfEdit.displayName(ctx, fileUri) }
 
     fun replaceItems(page: PageRef, f: (List<EditItem>) -> List<EditItem>) {
         val s = history[at]
@@ -386,7 +390,8 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Find text") }, onClick = { menu = false; finding = true })
                     DropdownMenuItem(text = { Text("Pages: rotate, reorder, delete") }, onClick = { menu = false; showPages = true })
-                    DropdownMenuItem(text = { Text("Save as a copy…") }, onClick = { menu = false; saveCopy.launch(name.removeSuffix(".pdf") + " (edited).pdf") })
+                    DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; naming = NameAsk(NameFor.RENAME, ".pdf", name) })
+                    DropdownMenuItem(text = { Text("Save as a copy…") }, onClick = { menu = false; naming = NameAsk(NameFor.COPY, ".pdf", name.removeSuffix(".pdf") + " (edited)") })
                     DropdownMenuItem(text = { Text("Share") }, onClick = { menu = false; sharePdf(ctx, fileUri) })
                 }
             }
@@ -624,12 +629,30 @@ fun PdfEditorScreen(start: Uri, onClose: () -> Unit, startWith: EditorStart = Ed
         )
     }
 
+    naming?.let { ask ->
+        NameDialog(ask.why.title, ask.initial, ask.ext, confirm = ask.why.confirm, onDismiss = { naming = null }, onDone = { n ->
+            naming = null
+            if (ask.why != NameFor.RENAME) { saveCopy.launch(n + ask.ext); return@NameDialog }
+            val myDoc = fileUri.takeIf { it.scheme == "file" }?.path?.let { java.io.File(it).parentFile }?.let { MyFiles.Doc(it) }
+            when {
+                myDoc != null -> {
+                    if (MyFiles.rename(myDoc, n)) renamedTimes++ else Toast.makeText(ctx, "Couldn't rename this file.", Toast.LENGTH_SHORT).show()
+                }
+                dirty -> Toast.makeText(ctx, "Save your changes first, then rename.", Toast.LENGTH_LONG).show()
+                else -> scope.launch {
+                    val renamed = withContext(Dispatchers.IO) { FileNames.renameDocument(ctx, fileUri, n + ask.ext) }
+                    if (renamed == null) Toast.makeText(ctx, "This folder doesn't allow renaming. Use Save as a copy instead.", Toast.LENGTH_LONG).show()
+                    else reopen(renamed)
+                }
+            }
+        })
+    }
     if (askCopy) {
         AlertDialog(
             onDismissRequest = { askCopy = false },
             title = { Text("Save as a copy?") },
             text = { Text("This file's folder doesn't let apps change it. Your edits are still here; save them as a new PDF instead.") },
-            confirmButton = { TextButton(onClick = { askCopy = false; saveCopy.launch(name.removeSuffix(".pdf") + " (edited).pdf") }) { Text("Choose where") } },
+            confirmButton = { TextButton(onClick = { askCopy = false; naming = NameAsk(NameFor.COPY, ".pdf", name.removeSuffix(".pdf") + " (edited)") }) { Text("Choose where") } },
             dismissButton = { TextButton(onClick = { askCopy = false }) { Text("Cancel") } },
         )
     }

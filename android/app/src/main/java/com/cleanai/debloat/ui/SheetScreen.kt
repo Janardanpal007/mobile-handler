@@ -1,5 +1,6 @@
 package com.cleanai.debloat.ui
 
+import com.cleanai.debloat.data.FileNames
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -104,6 +105,7 @@ fun SheetScreen(onBack: () -> Unit) {
     var askCopy by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf<NameAsk?>(null) }
     var version by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf(CellRef(1, 1)) }
     var draft by remember { mutableStateOf(TextFieldValue("")) }
@@ -156,9 +158,26 @@ fun SheetScreen(onBack: () -> Unit) {
     }
     val base = name.substringBeforeLast('.')
 
+    /** Renames the open file where it is; a file not saved yet just takes the new name. */
+    fun renameTo(file: String) {
+        val u = uri
+        if (u == null) { name = file; return }
+        scope.launch {
+            val renamed = withContext(Dispatchers.IO) { FileNames.renameDocument(ctx, u, file) }
+            if (renamed == null) {
+                Toast.makeText(ctx, "This folder doesn't allow renaming. Use Save as Excel instead.", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            RecentDocs.remove(ctx, RecentDocs.Kind.EXCEL, u)
+            uri = renamed; name = PdfEdit.displayName(ctx, renamed)
+            RecentDocs.add(ctx, RecentDocs.Kind.EXCEL, renamed, name)
+            Toast.makeText(ctx, "Renamed to $name", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun save() {
         val target = uri
-        if (target == null) { saveXlsx.launch("$base.xlsx"); return }
+        if (target == null) { naming = NameAsk(NameFor.NEW_FILE, ".xlsx", base); return }
         scope.launch {
             if (!csv && !withContext(Dispatchers.IO) { Sheets.keepsEverything(book()) }) { askCopy = true; return@launch }
             val ok = withContext(Dispatchers.IO) { write(target, csv) }
@@ -281,8 +300,9 @@ fun SheetScreen(onBack: () -> Unit) {
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Save as Excel (.xlsx)") }, onClick = { menu = false; commit(); saveXlsx.launch("$base.xlsx") })
-                            DropdownMenuItem(text = { Text("Save this sheet as CSV") }, onClick = { menu = false; commit(); saveCsv.launch("$base.csv") })
+                            DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; naming = NameAsk(NameFor.RENAME, if (csv) ".csv" else ".xlsx", base) })
+                            DropdownMenuItem(text = { Text("Save as Excel (.xlsx)") }, onClick = { menu = false; commit(); naming = NameAsk(NameFor.COPY, ".xlsx", base) })
+                            DropdownMenuItem(text = { Text("Save this sheet as CSV") }, onClick = { menu = false; commit(); naming = NameAsk(NameFor.COPY, ".csv", base) })
                             uri?.let { u ->
                                 DropdownMenuItem(
                                     text = { Text("Share") },
@@ -379,6 +399,16 @@ fun SheetScreen(onBack: () -> Unit) {
             confirmButton = { TextButton(onClick = { leaving = false; save() }) { Text("Save") } },
             dismissButton = { TextButton(onClick = { leaving = false; dirty = false; editing = false }) { Text("Discard") } },
         )
+    }
+    naming?.let { ask ->
+        NameDialog(ask.why.title, ask.initial, ask.ext, confirm = ask.why.confirm, onDismiss = { naming = null }, onDone = { n ->
+            naming = null
+            when {
+                ask.why == NameFor.RENAME -> renameTo(n + ask.ext)
+                ask.ext == ".csv" -> saveCsv.launch(n + ask.ext)
+                else -> saveXlsx.launch(n + ask.ext)
+            }
+        })
     }
     if (askCopy) {
         AlertDialog(

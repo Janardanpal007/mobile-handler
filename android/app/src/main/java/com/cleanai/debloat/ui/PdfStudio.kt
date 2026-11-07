@@ -65,6 +65,7 @@ internal class StudioActions(
     val openDoc: (MyFiles.Doc) -> Unit,
     val showAllTools: () -> Unit,
     val deleteDoc: (MyFiles.Doc) -> Unit,
+    val renameDoc: (MyFiles.Doc, String) -> Unit,
 )
 
 /** One tool on the All tools page: a round icon, its name and what it does. */
@@ -117,7 +118,7 @@ internal fun StudioHome(mine: List<MyFiles.Doc>, actions: StudioActions) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OpenCard("Open a PDF", "Read, find text, edit and sign", R.drawable.ic_tool_reader) { actions.openPdf(EditorStart.READ) }
         TileGrid(pdfTiles(actions))
-        RecentFiles(mine, actions.openDoc, actions.deleteDoc)
+        RecentFiles(mine, actions)
         Note("Everything happens on your phone — your documents are never uploaded.")
     }
 }
@@ -211,9 +212,10 @@ internal fun RoundTile(tile: StudioTile, modifier: Modifier) {
 
 /** PDFs saved in My Files with a small picture of their first page; a filter once there are more than a few. */
 @Composable
-private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit, onDelete: (MyFiles.Doc) -> Unit) {
+private fun RecentFiles(mine: List<MyFiles.Doc>, actions: StudioActions) {
     var filter by rememberSaveable { mutableStateOf("") }
     var deleting by remember { mutableStateOf<MyFiles.Doc?>(null) }
+    var renaming by remember { mutableStateOf<MyFiles.Doc?>(null) }
     var all by rememberSaveable { mutableStateOf(false) }
     val shown = remember(mine, filter) { if (filter.isBlank()) mine else mine.filter { it.title.contains(filter.trim(), ignoreCase = true) } }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
@@ -234,13 +236,18 @@ private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit, o
         return
     }
     if (mine.size > RECENT_SHOWN) SearchField(filter, { filter = it }, placeholder = "Search your files…", onGo = {})
-    (if (all) shown else shown.take(RECENT_SHOWN)).forEach { doc -> RecentRow(doc, onClick = { onDoc(doc) }, onDelete = { deleting = doc }) }
+    (if (all) shown else shown.take(RECENT_SHOWN)).forEach { doc ->
+        RecentRow(doc, onClick = { actions.openDoc(doc) }, onRename = { renaming = doc }, onDelete = { deleting = doc })
+    }
+    renaming?.let { doc ->
+        NameDialog("Rename", doc.name ?: doc.kind, ".pdf", confirm = "Rename", onDismiss = { renaming = null }, onDone = { actions.renameDoc(doc, it); renaming = null })
+    }
     deleting?.let { doc ->
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete this file?") },
             text = { Text("\u201C${doc.title}\u201D will be removed from your phone. This can't be undone.") },
-            confirmButton = { TextButton(onClick = { onDelete(doc); deleting = null }) { Text("Delete", color = Red) } },
+            confirmButton = { TextButton(onClick = { actions.deleteDoc(doc); deleting = null }) { Text("Delete", color = Red) } },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
     }
@@ -248,7 +255,7 @@ private fun RecentFiles(mine: List<MyFiles.Doc>, onDoc: (MyFiles.Doc) -> Unit, o
 }
 
 @Composable
-private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     val thumb by produceState<Bitmap?>(null, doc.pdf) { value = firstPageThumb(doc.pdf) }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(16.dp))
@@ -262,6 +269,9 @@ private fun RecentRow(doc: MyFiles.Doc, onClick: () -> Unit, onDelete: () -> Uni
         Column(Modifier.weight(1f)) {
             Text(doc.title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("PDF · ${doc.sizeText}", color = TextSecondary, fontSize = 12.sp)
+        }
+        Box(Modifier.size(40.dp).clip(CircleShape).bouncy(onClick = onRename), contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.ic_edit), contentDescription = "Rename ${doc.title}", tint = TextSecondary, modifier = Modifier.size(20.dp))
         }
         Box(Modifier.size(40.dp).clip(CircleShape).bouncy(onClick = onDelete), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.Delete, contentDescription = "Delete ${doc.title}", tint = TextSecondary, modifier = Modifier.size(20.dp))

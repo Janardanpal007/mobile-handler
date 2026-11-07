@@ -1,5 +1,6 @@
 package com.cleanai.debloat.ui
 
+import com.cleanai.debloat.data.FileNames
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -121,6 +122,7 @@ fun WordScreen(onBack: () -> Unit) {
     var focused by remember { mutableStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf<NameAsk?>(null) }
     val focus = remember { mutableMapOf<Long, FocusRequester>() }
     var focusNext by remember { mutableStateOf<Long?>(null) }
 
@@ -153,9 +155,26 @@ fun WordScreen(onBack: () -> Unit) {
         }
     }
 
+    /** Renames the open file where it is; a file not saved yet just takes the new name. */
+    fun renameTo(file: String) {
+        val u = uri
+        if (u == null) { name = file; return }
+        scope.launch {
+            val renamed = withContext(Dispatchers.IO) { FileNames.renameDocument(ctx, u, file) }
+            if (renamed == null) {
+                Toast.makeText(ctx, "This folder doesn't allow renaming. Use Save as a new file instead.", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            RecentDocs.remove(ctx, RecentDocs.Kind.WORD, u)
+            uri = renamed; name = PdfEdit.displayName(ctx, renamed)
+            RecentDocs.add(ctx, RecentDocs.Kind.WORD, renamed, name)
+            Toast.makeText(ctx, "Renamed to $name", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun save() {
         val target = uri
-        if (target == null) { saveAs.launch(name); return }
+        if (target == null) { naming = NameAsk(NameFor.NEW_FILE, ".docx", name); return }
         scope.launch {
             val ok = withContext(Dispatchers.IO) { write(target) }
             if (ok) { dirty = false; Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show() }
@@ -227,7 +246,8 @@ fun WordScreen(onBack: () -> Unit) {
                     Box {
                         Text("⋮", color = TextPrimary, fontSize = 22.sp, modifier = Modifier.clickable { menu = true }.padding(horizontal = 10.dp, vertical = 4.dp))
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Save as a new file") }, onClick = { menu = false; saveAs.launch(name) })
+                            DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; naming = NameAsk(NameFor.RENAME, ".docx", name) })
+                            DropdownMenuItem(text = { Text("Save as a new file") }, onClick = { menu = false; naming = NameAsk(NameFor.COPY, ".docx", name) })
                             uri?.let { u ->
                                 DropdownMenuItem(
                                     text = { Text("Share") },
@@ -352,6 +372,12 @@ fun WordScreen(onBack: () -> Unit) {
         }
     }
 
+    naming?.let { ask ->
+        NameDialog(ask.why.title, ask.initial, ask.ext, confirm = ask.why.confirm, onDismiss = { naming = null }, onDone = { n ->
+            naming = null
+            if (ask.why == NameFor.RENAME) renameTo(n + ask.ext) else saveAs.launch(n + ask.ext)
+        })
+    }
     if (leaving) {
         AlertDialog(
             onDismissRequest = { leaving = false },

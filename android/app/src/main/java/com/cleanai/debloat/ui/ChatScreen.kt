@@ -155,6 +155,9 @@ fun ChatScreen(vm: AgentViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
             InputBar(enabled = !vm.busy, onSend = vm::onSend)
         }
     }
+    vm.renaming?.let { doc ->
+        NameDialog("Rename", doc.name ?: doc.kind, ".pdf", confirm = "Rename", onDone = { vm.renameDone(it) }, onDismiss = { vm.renameDone(null) })
+    }
 }
 
 // ------------------------------------------------------------------ chrome

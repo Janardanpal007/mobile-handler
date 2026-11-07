@@ -72,6 +72,7 @@ sealed interface Act {
     data class OpenPdf(val uri: String) : Act { override val isLink get() = true }
     data class SharePdf(val uri: String) : Act { override val isLink get() = true }
     data class ShareImages(val dir: String) : Act { override val isLink get() = true }
+    data class RenameDoc(val dir: String) : Act { override val isLink get() = true }
 }
 
 /** Screens the chat asks MainActivity to open; their results come back to the view model. */

@@ -197,6 +197,10 @@ fun PdfScreen(onBack: () -> Unit, openTool: (String) -> Unit = {}) {
             if (!MyFiles.delete(doc)) Toast.makeText(ctx, "Couldn't delete this file.", Toast.LENGTH_SHORT).show()
             mine = MyFiles.list(ctx).filter { it.hasPdf }
         },
+        renameDoc = { doc, newName ->
+            if (!MyFiles.rename(doc, newName)) Toast.makeText(ctx, "Couldn't rename this file.", Toast.LENGTH_SHORT).show()
+            mine = MyFiles.list(ctx).filter { it.hasPdf }
+        },
     )
     BackHandler(enabled = tool != null || allTools) { back() }
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {

@@ -44,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.text.style.TextOverflow
 import com.cleanai.debloat.R
 import com.cleanai.debloat.data.MyFiles
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +58,7 @@ fun FilesScreen(onBack: () -> Unit) {
     var version by remember { mutableStateOf(0) }
     val docs = remember(version) { MyFiles.list(ctx) }
     var deleting by remember { mutableStateOf<MyFiles.Doc?>(null) }
+    var renaming by remember { mutableStateOf<MyFiles.Doc?>(null) }
 
     Column(Modifier.fillMaxSize().background(Bg).systemBarsPadding()) {
         ScreenTopBar("My Files", onBack, subtitle = "${docs.size} document${if (docs.size == 1) "" else "s"} · on this phone")
@@ -88,12 +91,19 @@ fun FilesScreen(onBack: () -> Unit) {
                         onSharePdf = { MyFiles.sharePdf(ctx, doc) },
                         onShareImages = { MyFiles.shareImages(ctx, doc) },
                         onDelete = { deleting = doc },
+                        onRename = { renaming = doc },
                     ) }
                 }
             }
         }
     }
 
+    renaming?.let { doc ->
+        NameDialog("Rename", doc.name ?: doc.kind, ".pdf", confirm = "Rename", onDismiss = { renaming = null }, onDone = { name ->
+            if (!MyFiles.rename(doc, name)) Toast.makeText(ctx, "Couldn't rename this file.", Toast.LENGTH_SHORT).show()
+            renaming = null; version++
+        })
+    }
     deleting?.let { doc ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -109,7 +119,7 @@ fun FilesScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun DocCard(doc: MyFiles.Doc, onOpen: () -> Unit, onSharePdf: () -> Unit, onShareImages: () -> Unit, onDelete: () -> Unit) {
+private fun DocCard(doc: MyFiles.Doc, onOpen: () -> Unit, onSharePdf: () -> Unit, onShareImages: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit) {
     val pages = doc.images.size
     Column(
         Modifier
@@ -123,12 +133,15 @@ private fun DocCard(doc: MyFiles.Doc, onOpen: () -> Unit, onSharePdf: () -> Unit
             Thumb(doc)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(doc.kind, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Text(doc.title.substringAfter(" · "), color = TextSecondary, fontSize = 14.sp)
+                Text(doc.name ?: doc.kind, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(if (doc.name != null) "${doc.kind} · ${doc.dateText}" else doc.dateText, color = TextSecondary, fontSize = 14.sp)
                 Text(
                     listOfNotNull(if (pages > 0) "$pages page${if (pages == 1) "" else "s"}" else null, doc.sizeText).joinToString(" · "),
                     color = TextSecondary, fontSize = 14.sp,
                 )
+            }
+            Box(Modifier.size(40.dp).clip(CircleShape).bouncy(onClick = onRename), contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.ic_edit), contentDescription = "Rename", tint = TextSecondary, modifier = Modifier.size(20.dp))
             }
         }
         Spacer(Modifier.height(12.dp))

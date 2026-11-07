@@ -51,7 +51,9 @@ object PdfEdit {
 
     fun displayName(ctx: Context, uri: Uri): String =
         // My Files keeps each PDF as <folder>/document.pdf, so the folder ("Scan_20261102_2240") is the useful name.
-        if (uri.scheme == "file") java.io.File(uri.path.orEmpty()).let { f -> if (f.name == "document.pdf") f.parentFile?.name + ".pdf" else f.name }
+        if (uri.scheme == "file") java.io.File(uri.path.orEmpty()).let { f ->
+            if (f.name == "document.pdf") (f.parentFile?.let { MyFiles.Doc(it).name } ?: f.parentFile?.name) + ".pdf" else f.name
+        }
         else runCatching {
             ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
                 if (c.moveToFirst()) c.getString(0) else null

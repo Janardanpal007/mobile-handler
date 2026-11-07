@@ -231,7 +231,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
             Act.ClearChat -> clearChat()
             Act.OpenFiles -> openScreen = "files"
             Act.GetShizuku, Act.OpenAbout, Act.OpenDevOptions, Act.OpenNetwork, Act.OpenLocation, is Act.OpenAppInfo,
-            is Act.OpenUrl, is Act.Copy, is Act.OpenPdf, is Act.SharePdf, is Act.ShareImages -> openLink(act)
+            is Act.OpenUrl, is Act.Copy, is Act.OpenPdf, is Act.SharePdf, is Act.ShareImages, is Act.RenameDoc -> openLink(act)
         }
     }
 
@@ -995,9 +995,21 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
         offer(
             Choice("Open PDF", Act.OpenPdf(pdf.uri.toString()), recommended = true),
             Choice("Share PDF", Act.SharePdf(pdf.uri.toString())),
+            Choice("Rename", Act.RenameDoc(pdf.dir)),
             Choice("Share as images", Act.ShareImages(pdf.dir)),
             Choice("Open My Files", Act.OpenFiles),
         )
+    }
+
+    /** The My Files document whose name is being asked for, after "Rename". */
+    var renaming by mutableStateOf<MyFiles.Doc?>(null); private set
+
+    fun renameDone(name: String?) = viewModelScope.launch {
+        val doc = renaming ?: return@launch
+        renaming = null
+        if (name == null) return@launch
+        if (MyFiles.rename(doc, name)) say("✓ Renamed to $name.pdf", think = 100)
+        else say("⚠️ Couldn't rename it. Try again from My Files.", think = 100)
     }
 
     fun onLocationPermission(granted: Boolean) = viewModelScope.launch {
@@ -1119,7 +1131,13 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 Toast.makeText(ctx, "Copied", Toast.LENGTH_SHORT).show()
                 return
             }
+            is Act.RenameDoc -> {
+                renaming = MyFiles.byPath(act.dir)
+                return
+            }
             is Act.OpenPdf -> {
+                // My Files PDFs open under the name the user gave them.
+                MyFiles.fromLink(ctx, Uri.parse(act.uri))?.let { MyFiles.open(ctx, it); return }
                 val view = Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(act.uri), "application/pdf")
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 try {
@@ -1134,6 +1152,7 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 return
             }
             is Act.SharePdf -> {
+                MyFiles.fromLink(ctx, Uri.parse(act.uri))?.let { MyFiles.sharePdf(ctx, it); return }
                 val send = Intent(Intent.ACTION_SEND).setType("application/pdf")
                     .putExtra(Intent.EXTRA_STREAM, Uri.parse(act.uri))
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
