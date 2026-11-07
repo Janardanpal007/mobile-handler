@@ -23,6 +23,15 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0.3", "7 Nov 2026",
+        listOf(
+            "Name your scans and photo PDFs, and rename them any time in My Files or the PDF Editor",
+            "Shared and opened PDFs use your name, like Rent agreement.pdf",
+            "Word and Excel: name new files before saving, and rename the open file",
+            "PDF Editor: rename a PDF, and name copies when you save them",
+        ),
+    ),
+    Release(
         "2.0.2", "6 Nov 2026",
         listOf(
             "Open PDF, Word and Excel files straight from Files, Downloads, WhatsApp, Gmail and other apps",
