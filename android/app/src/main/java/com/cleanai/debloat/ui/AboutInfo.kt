@@ -23,6 +23,15 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0.5", "8 Nov 2026",
+        listOf(
+            "Calculator: long sums and answers show in full, up to 15 digits",
+            "Calculator: backspace key on the keypad, plus a 00 key, like your phone's calculator",
+            "Calculator: the top bar is now one slim row of icons, leaving more room for your sum",
+            "Calculator: swiping back from the screen edge no longer erases a digit",
+        ),
+    ),
+    Release(
         "2.0.4", "8 Nov 2026",
         listOf(
             "Calculator: see the answer as you type, before pressing =",
