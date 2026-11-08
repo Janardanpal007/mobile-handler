@@ -142,22 +142,6 @@ internal fun EditCalcDialog(start: String, degrees: Boolean = true, onDismiss: (
     )
 }
 
-/** "🕘 History" above a calculator's display. To edit, you tap the sum itself. */
-@Composable
-internal fun CalcTools(onHistory: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
-        ToolPill("🕘  History", true, onHistory)
-    }
-}
-
-@Composable
-private fun ToolPill(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        Modifier.clip(RoundedCornerShape(50)).background(KeyDigit).clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) { Text(label, color = if (enabled) Color.White else Color.White.copy(alpha = 0.35f), fontSize = 14.sp) }
-}
-
 /** Past calculations, newest first; tap one to edit and reuse it. */
 @Composable
 internal fun HistoryDialog(onDismiss: () -> Unit, onPick: (CalcEntry) -> Unit) {
@@ -174,7 +158,7 @@ internal fun HistoryDialog(onDismiss: () -> Unit, onPick: (CalcEntry) -> Unit) {
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(e) }.padding(horizontal = 8.dp, vertical = 8.dp),
                     ) {
-                        Text(e.expr, color = KeyFn, fontSize = 15.sp, textAlign = TextAlign.End, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+                        Text(e.expr.replace(Regex("([+−×÷])"), "$1​"), color = KeyFn, fontSize = 15.sp, textAlign = TextAlign.End, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
                         Text("= ${e.result}", color = Color.White, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.fillMaxWidth())
                     }
                 }

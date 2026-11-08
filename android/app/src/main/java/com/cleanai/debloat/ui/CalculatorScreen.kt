@@ -1,5 +1,9 @@
 package com.cleanai.debloat.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -118,6 +122,9 @@ internal object CalcMemory {
 
     /** Set by the assistant ("scientific calculator", "loan EMI") to open a particular tab. */
     @Volatile var requestedTab: Int? = null
+
+    /** The 🕘 button in the top row opens the history of the Basic or Scientific calculator. */
+    val historyOpen = mutableStateOf(false)
 }
 
 /** Height a keypad may use, so landscape keys shrink instead of running off the screen. */
@@ -143,53 +150,22 @@ fun CalculatorScreen(onBack: () -> Unit) {
             .background(Color.Black)
             .systemBarsPadding(),
     ) {
-        val back: @Composable () -> Unit = {
-            Box(
-                Modifier.bouncy(onClick = onBack).size(44.dp).clip(CircleShape).background(KeyDigit),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
+        // Everything above the display fits in one slim row of icons, leaving the room for the sum.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            RoundIcon("Back", onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
-        }
-        // Opens the small calculator that floats over other apps.
-        val float: @Composable () -> Unit = {
-            Box(
-                Modifier.bouncy {
-                    if (FloatingCalcService.canShow(ctx)) FloatingCalcService.start(ctx) else askOverlay = true
-                }.size(44.dp).clip(CircleShape).background(KeyDigit),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("⧉", color = KeyOp, fontSize = 22.sp)
-            }
-        }
-        val tabs = listOf("Basic", "Scientific", "Finance", "Currency", "Units")
-        if (landscape) {
-            // Sideways the screen is short: back, tabs and ⧉ share one line.
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                back()
-                Segments(tabs, tab, Modifier.weight(1f).padding(horizontal = 12.dp)) { tab = it }
-                float()
-            }
-        } else {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                back()
-                Text(
-                    "Calculator",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                float()
-            }
-            Segments(tabs, tab, Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { tab = it }
+            Segments(TAB_ICONS, TAB_NAMES, tab, Modifier.weight(1f)) { tab = it }
+            // Only the Basic and Scientific calculators keep a history.
+            if (tab <= 1) RoundIcon("History", { CalcMemory.historyOpen.value = true }) { Text("🕘", fontSize = 16.sp) }
+            // Opens the small calculator that floats over other apps.
+            RoundIcon("Floating calculator", {
+                if (FloatingCalcService.canShow(ctx)) FloatingCalcService.start(ctx) else askOverlay = true
+            }) { Text("⧉", color = KeyOp, fontSize = 20.sp) }
         }
         if (askOverlay) {
             AlertDialog(
@@ -232,9 +208,23 @@ private fun LightSystemBars() {
     }
 }
 
+/** The calculator's modes as short symbols, with their names read out by TalkBack. */
+private val TAB_ICONS = listOf("123", "√x", "EMI", "₹$", "cm")
+private val TAB_NAMES = listOf("Basic", "Scientific", "Finance", "Currency", "Units")
+
+/** A small round button in the calculator's top row. */
+@Composable
+private fun RoundIcon(name: String, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.bouncy(onClick = onClick).size(38.dp).clip(CircleShape).background(KeyDigit)
+            .semantics { contentDescription = name; role = Role.Button },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
 /** iOS segmented control. */
 @Composable
-private fun Segments(labels: List<String>, selected: Int, modifier: Modifier, onSelect: (Int) -> Unit) {
+private fun Segments(labels: List<String>, names: List<String>, selected: Int, modifier: Modifier, onSelect: (Int) -> Unit) {
     Row(
         modifier
             .clip(RoundedCornerShape(10.dp))
@@ -247,7 +237,8 @@ private fun Segments(labels: List<String>, selected: Int, modifier: Modifier, on
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (i == selected) SegmentOn else Color.Transparent)
-                    .clickable { onSelect(i) }
+                    .clickable(onClickLabel = names[i]) { onSelect(i) }
+                    .semantics { contentDescription = names[i] }
                     .padding(vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -509,7 +500,7 @@ private fun ColumnScope.MathPad() {
     val edges = WindowInsets.systemGestures
     val leftEdge = maxOf(edges.getLeft(density, direction).toFloat(), with(density) { EDGE_ZONE.toPx() })
     val rightEdge = maxOf(edges.getRight(density, direction).toFloat(), with(density) { EDGE_ZONE.toPx() })
-    var history by remember { mutableStateOf(false) }
+    var history by CalcMemory.historyOpen
     // Samsung-style editing: the sum on the display with a cursor, changed with the calculator's own keys.
     var editing by remember { mutableStateOf<SumEditor?>(null) }
     // The sum being typed, or the one just worked out, or the number on show.
@@ -541,7 +532,6 @@ private fun ColumnScope.MathPad() {
         horizontalAlignment = Alignment.End,
     ) {
         val ed = editing
-        CalcTools(onHistory = { history = true })
         Spacer(Modifier.weight(1f))
         if (ed != null) {
             SumField(ed)
@@ -567,7 +557,7 @@ private fun ColumnScope.MathPad() {
                 modifier = Modifier.fillMaxWidth().clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
             )
             // A longer sum leaves less room, so the big number gets a little smaller to keep the answer line in view.
-            val numberSize = when { sum.length <= 22 -> 88f; sum.length <= 44 -> 56f; else -> 46f }
+            val numberSize = when { sum.length <= 22 -> 88f; sum.length <= 44 -> 76f; else -> 62f }
             Box(Modifier.clickable(enabled = editStart().isNotEmpty()) { editing = SumEditor(editStart()) }) { FitText(calc.display, max = numberSize) }
             // The answer as you type, before "=" (the line keeps its place so the number doesn't jump).
             Text(

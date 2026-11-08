@@ -168,7 +168,7 @@ internal class SciCalc {
 
 @Composable
 internal fun ColumnScope.ScientificPad(calc: SciCalc) {
-    var history by remember { mutableStateOf(false) }
+    var history by CalcMemory.historyOpen
     var edit by remember { mutableStateOf<String?>(null) }
     if (history) HistoryDialog(onDismiss = { history = false }) { e -> history = false; edit = e.expr }
     edit?.let { start ->
@@ -178,23 +178,22 @@ internal fun ColumnScope.ScientificPad(calc: SciCalc) {
     if (landscape) {
         // Sideways there isn't room above the keys, so the display sits beside them.
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            SciDisplay(calc, Modifier.weight(0.36f).fillMaxHeight(), onHistory = { history = true }, onEdit = { edit = it })
+            SciDisplay(calc, Modifier.weight(0.36f).fillMaxHeight(), onEdit = { edit = it })
             SciKeypad(calc, Modifier.weight(0.64f).fillMaxHeight(), fillHeight = true)
         }
     } else {
-        SciDisplay(calc, Modifier.fillMaxWidth().weight(1f), onHistory = { history = true }, onEdit = { edit = it })
+        SciDisplay(calc, Modifier.fillMaxWidth().weight(1f), onEdit = { edit = it })
         SciKeypad(calc, Modifier.fillMaxWidth(), fillHeight = false)
     }
 }
 
 @Composable
-private fun SciDisplay(calc: SciCalc, modifier: Modifier, onHistory: () -> Unit, onEdit: (String) -> Unit) {
+private fun SciDisplay(calc: SciCalc, modifier: Modifier, onEdit: (String) -> Unit) {
     Column(
         modifier.padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.End,
     ) {
-        CalcTools(onHistory = onHistory)
         Spacer(Modifier.weight(1f))
         Text(
             if (calc.degrees) "DEG" else "RAD",
