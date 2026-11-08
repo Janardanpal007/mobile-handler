@@ -54,7 +54,7 @@ import kotlin.math.pow
 
 private val KeySci = Color(0xFF1F1F1F)
 private val KeySciDown = Color(0xFF505050)
-private val Panel = Color(0xFF1C1C1E)
+internal val Panel = Color(0xFF1C1C1E)
 
 // ---------------------------------------------------------------- scientific
 
@@ -390,14 +390,18 @@ private fun Gst() {
 }
 
 @Composable
-private fun Field(label: String, value: String, onChange: (String) -> Unit) {
+internal fun Field(label: String, value: String, allowMinus: Boolean = false, onChange: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Text(label, color = KeyFn, fontSize = 13.sp)
         BasicTextField(
             value,
-            { v -> onChange(v.filter { it.isDigit() || it == '.' }.take(15)) },
+            { v ->
+                // A minus sign only at the start, and only where negative numbers make sense (temperatures).
+                val minus = allowMinus && v.startsWith("-")
+                onChange((if (minus) "-" else "") + v.filter { it.isDigit() || it == '.' }.take(15))
+            },
             singleLine = true,
             textStyle = TextStyle(color = Color.White, fontSize = 24.sp),
             cursorBrush = SolidColor(KeyOp),

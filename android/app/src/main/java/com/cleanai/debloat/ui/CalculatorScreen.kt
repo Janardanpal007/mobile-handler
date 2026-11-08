@@ -116,7 +116,7 @@ internal fun keypadHeightLimit(): Dp = (LocalConfiguration.current.screenHeightD
 
 /**
  * iPhone-style calculator. Tabs: Basic, Scientific (also shown when Basic is turned sideways, like the iPhone),
- * Finance (loan EMI, SIP, compound interest, GST) and live Currency conversion.
+ * Finance (loan EMI, SIP, compound interest, GST), live Currency conversion and Units (length, weight, temperature and more).
  */
 @Composable
 fun CalculatorScreen(onBack: () -> Unit) {
@@ -152,7 +152,7 @@ fun CalculatorScreen(onBack: () -> Unit) {
                 Text("⧉", color = KeyOp, fontSize = 22.sp)
             }
         }
-        val tabs = listOf("Basic", "Scientific", "Finance", "Currency")
+        val tabs = listOf("Basic", "Scientific", "Finance", "Currency", "Units")
         if (landscape) {
             // Sideways the screen is short: back, tabs and ⧉ share one line.
             Row(
@@ -199,7 +199,8 @@ fun CalculatorScreen(onBack: () -> Unit) {
             0 -> if (landscape) ScientificPad(CalcMemory.sci) else MathPad()
             1 -> ScientificPad(CalcMemory.sci)
             2 -> FinancePad()
-            else -> CurrencyPad()
+            3 -> CurrencyPad()
+            else -> UnitsPad()
         }
     }
 }
@@ -240,7 +241,7 @@ private fun Segments(labels: List<String>, selected: Int, modifier: Modifier, on
                     .padding(vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, color = Color.White, fontSize = 14.sp, fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal)
+                Text(label, color = Color.White, fontSize = 13.sp, fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, softWrap = false)
             }
         }
     }

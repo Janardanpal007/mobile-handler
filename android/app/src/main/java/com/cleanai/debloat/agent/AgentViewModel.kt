@@ -834,6 +834,10 @@ class AgentViewModel(app: Application) : AndroidViewModel(app) {
                 CalcMemory.requestedTab = 2
                 return openFeature(Features.byId("calculator")!!)
             }
+            Regex("""\bunits?\s+convert\w*|\bconvert\w*\s+units?\b|\bunit calc\w*""").containsMatchIn(t) -> {
+                CalcMemory.requestedTab = 4
+                return openFeature(Features.byId("calculator")!!)
+            }
             Regex("""\b(excel|spreadsheets?|xlsx|csv)\b""").containsMatchIn(t) -> return openFeature(Features.byId("excel")!!)
             // "Make a note", "my notes", "to-do list" (but "scan my notes" is still the document scanner).
             Regex("""\b(notes?|notepad|checklists?|to-?do( list)?s?|memos?|jot)\b""").containsMatchIn(t) && !Regex("""\bscan\w*|\b(release|patch|update|version) notes?\b""").containsMatchIn(t) ->
