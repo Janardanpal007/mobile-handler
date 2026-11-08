@@ -277,6 +277,15 @@ internal class IosCalc {
 
     private fun value(): BigDecimal = typed?.let { BigDecimal(it.removeSuffix(".").ifEmpty { "0" }) } ?: current
 
+    /**
+     * The answer so far while a sum is being typed: "12 + 3 × 4" shows 24 before "=" is pressed.
+     * Null when there is nothing to work out yet (a single number, or right after an operator).
+     */
+    val preview: String? get() {
+        if (typed == null || error || nums.isEmpty()) return null
+        return runCatching { formatNumber(evaluate(nums + value(), ops)) }.getOrNull()
+    }
+
     fun press(key: String) {
         when (key) {
             "AC" -> allClear()
@@ -537,6 +546,12 @@ private fun ColumnScope.MathPad() {
                 modifier = Modifier.clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
             )
             Box(Modifier.clickable(enabled = editStart().isNotEmpty()) { editing = SumEditor(editStart()) }) { FitText(calc.display) }
+            // The answer as you type, before "=" (the line keeps its place so the number doesn't jump).
+            Text(
+                calc.preview?.let { "= $it" } ?: " ",
+                color = KeyFn, fontSize = 30.sp, maxLines = 1, softWrap = false, textAlign = TextAlign.End,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
         }
     }
     // Back leaves editing without changing anything.

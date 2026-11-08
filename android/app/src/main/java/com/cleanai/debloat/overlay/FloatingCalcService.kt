@@ -264,7 +264,8 @@ class FloatingCalcService : Service() {
     /** Redraws the number, the AC/C label and the lit operator after each key. */
     private fun refresh() {
         display.text = calc.display
-        expression.text = calc.expression
+        // The sum so far, with its answer as you type ("12+3×4  = 24").
+        expression.text = calc.expression + (calc.preview?.let { "  = $it" } ?: "")
         keys["AC"]?.text = calc.clearLabel
         keys.forEach { (k, v) ->
             val lit = k.length == 1 && k[0] == calc.selectedOp
