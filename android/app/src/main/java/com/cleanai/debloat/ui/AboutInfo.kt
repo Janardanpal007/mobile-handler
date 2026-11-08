@@ -23,6 +23,14 @@ class Release(val version: String, val date: String, val notes: List<String>)
 
 val Changelog = listOf(
     Release(
+        "2.0.4", "8 Nov 2026",
+        listOf(
+            "Calculator: see the answer as you type, before pressing =",
+            "Floating calculator: live answer next to the sum",
+            "Calculator: new Units tab for length, weight, temperature, area, volume, speed, time and data",
+        ),
+    ),
+    Release(
         "2.0.3", "7 Nov 2026",
         listOf(
             "Name your scans and photo PDFs, and rename them any time in My Files or the PDF Editor",
