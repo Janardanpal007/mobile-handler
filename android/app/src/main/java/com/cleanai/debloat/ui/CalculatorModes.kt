@@ -208,7 +208,8 @@ private fun SciDisplay(calc: SciCalc, modifier: Modifier, onHistory: () -> Unit,
             Text(calc.lastExpr, color = KeyFn, fontSize = 22.sp, textAlign = TextAlign.End, maxLines = 2, modifier = Modifier.clickable { onEdit(calc.lastExpr) })
             FitText(result, max = 72f)
         } else {
-            val shown = calc.expr.ifEmpty { "0" }
+            // Three lines at most; a longer sum keeps its newest part on screen.
+            val shown = calc.expr.ifEmpty { "0" }.let { if (it.length > 84) "…" + it.takeLast(84) else it }
             Text(
                 shown,
                 color = Color.White,

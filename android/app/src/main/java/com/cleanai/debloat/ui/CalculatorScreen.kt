@@ -1,5 +1,9 @@
 package com.cleanai.debloat.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextOverflow
 import android.app.Activity
 import android.content.res.Configuration
 import com.cleanai.debloat.overlay.FloatingCalcService
@@ -84,14 +88,20 @@ internal val KeyOpDown = Color(0xFFFCC78D)
 private val SegmentBg = Color(0xFF1C1C1E)
 private val SegmentOn = Color(0xFF636366)
 
-private const val MAX_DIGITS = 9
+private const val MAX_DIGITS = 15
+
+/** A very long sum keeps its newest part on screen. */
+private const val SUM_SHOWN = 90
+
+/** Swipes that start this close to the screen's sides are Android's back gesture, not "delete a digit". */
+private val EDGE_ZONE = 40.dp
 
 private val CalcKeys = listOf(
-    listOf("AC", "±", "%", "÷"),
+    listOf("AC", "%", "⌫", "÷"),
     listOf("7", "8", "9", "×"),
     listOf("4", "5", "6", "−"),
     listOf("1", "2", "3", "+"),
-    listOf("0", ".", "="),
+    listOf("00", "0", ".", "="),
 )
 
 private val MoneyKeys = listOf(
@@ -290,21 +300,31 @@ internal class IosCalc {
         when (key) {
             "AC" -> allClear()
             "C" -> clearEntry()
-            "±" -> negate()
+            "⌫" -> backspace()
             "%" -> percent()
             "=" -> equals()
             "+" -> op('+')
             "−" -> op('−')
             "×" -> op('×')
             "÷" -> op('÷')
+            "00" -> { digit("0"); digit("0") }
             else -> digit(key)
         }
     }
 
     /** Swiping across the display removes the last digit, as on the iPhone. */
     fun backspace() {
-        val t = typed ?: return
-        typed = t.dropLast(1).takeUnless { it.isEmpty() || it == "-" } ?: "0"
+        if (error) return allClear()
+        val t = typed
+        if (t != null) {
+            typed = t.dropLast(1).takeUnless { it.isEmpty() || it == "-" } ?: "0"
+        } else if (selectedOp != null && nums.isNotEmpty()) {
+            // "12 + ⌫" goes back to typing 12.
+            ops.removeAt(ops.lastIndex)
+            typed = nums.removeAt(nums.lastIndex).stripTrailingZeros().toPlainString()
+            selectedOp = null
+            if (nums.isEmpty()) expression = ""
+        } else return
         refreshExpression()
     }
 
@@ -375,17 +395,6 @@ internal class IosCalc {
         current = answer
         expression = text
         CalcHistory.add(text, display)
-    }
-
-    private fun negate() {
-        if (error) return
-        val t = typed
-        when {
-            t != null -> typed = if (t.startsWith("-")) t.drop(1) else "-$t"
-            selectedOp != null -> { typed = "-0"; selectedOp = null }
-            else -> current = current.negate()
-        }
-        refreshExpression()
     }
 
     /** "200 + 10 %" means 10 % of 200, like the iPhone; otherwise it divides by 100. */
@@ -494,7 +503,12 @@ internal fun groupTyped(s: String): String {
 private fun ColumnScope.MathPad() {
     val calc = CalcMemory.basic
     val haptics = LocalHapticFeedback.current
-    val swipe = with(LocalDensity.current) { 36.dp.toPx() }
+    val density = LocalDensity.current
+    val swipe = with(density) { 36.dp.toPx() }
+    val direction = LocalLayoutDirection.current
+    val edges = WindowInsets.systemGestures
+    val leftEdge = maxOf(edges.getLeft(density, direction).toFloat(), with(density) { EDGE_ZONE.toPx() })
+    val rightEdge = maxOf(edges.getRight(density, direction).toFloat(), with(density) { EDGE_ZONE.toPx() })
     var history by remember { mutableStateOf(false) }
     // Samsung-style editing: the sum on the display with a cursor, changed with the calculator's own keys.
     var editing by remember { mutableStateOf<SumEditor?>(null) }
@@ -505,11 +519,14 @@ private fun ColumnScope.MathPad() {
         Modifier
             .fillMaxWidth()
             .weight(1f)
-            .pointerInput(Unit) {
+            .pointerInput(leftEdge, rightEdge) {
                 var dragged = 0f
+                var fromEdge = false
                 detectHorizontalDragGestures(
-                    onDragStart = { dragged = 0f },
+                    // A swipe in from the side is Android's back gesture: leave the number alone.
+                    onDragStart = { at -> dragged = 0f; fromEdge = at.x < leftEdge || at.x > size.width - rightEdge },
                     onHorizontalDrag = { _, dx ->
+                        if (fromEdge) return@detectHorizontalDragGestures
                         dragged += dx
                         if (kotlin.math.abs(dragged) > swipe) {
                             dragged = 0f
@@ -536,20 +553,26 @@ private fun ColumnScope.MathPad() {
             )
         } else {
             // Tap the sum or the number to put a cursor in it and change it.
+            // The whole sum, over up to three lines and smaller as it grows, so nothing is hidden.
+            val sum = calc.expression.let { if (it.length > SUM_SHOWN) "…" + it.takeLast(SUM_SHOWN) else it }
             Text(
-                calc.expression,
+                // Lines break after + − × ÷, never in the middle of a number.
+                sum.replace(Regex("([+−×÷])"), "$1​"),
                 color = KeyFn,
-                fontSize = 26.sp,
-                maxLines = 1,
+                fontSize = when { sum.length <= 22 -> 26.sp; sum.length <= 44 -> 22.sp; else -> 18.sp },
+                lineHeight = when { sum.length <= 22 -> 32.sp; sum.length <= 44 -> 28.sp; else -> 23.sp },
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.End,
-                softWrap = false,
-                modifier = Modifier.clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
+                modifier = Modifier.fillMaxWidth().clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
             )
-            Box(Modifier.clickable(enabled = editStart().isNotEmpty()) { editing = SumEditor(editStart()) }) { FitText(calc.display) }
+            // A longer sum leaves less room, so the big number gets a little smaller to keep the answer line in view.
+            val numberSize = when { sum.length <= 22 -> 88f; sum.length <= 44 -> 56f; else -> 46f }
+            Box(Modifier.clickable(enabled = editStart().isNotEmpty()) { editing = SumEditor(editStart()) }) { FitText(calc.display, max = numberSize) }
             // The answer as you type, before "=" (the line keeps its place so the number doesn't jump).
             Text(
                 calc.preview?.let { "= $it" } ?: " ",
-                color = KeyFn, fontSize = 30.sp, maxLines = 1, softWrap = false, textAlign = TextAlign.End,
+                color = KeyFn, fontSize = 26.sp, maxLines = 1, softWrap = false, textAlign = TextAlign.End,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
         }
@@ -563,7 +586,6 @@ private fun ColumnScope.MathPad() {
             when {
                 // C empties the sum; once it is empty the key turns into AC.
                 editing != null && it == "AC" -> if (editing!!.text.isEmpty()) "AC" else "C"
-                editing != null && it == "±" -> "⌫"
                 it == "AC" -> calc.clearLabel
                 else -> it
             }
@@ -576,7 +598,7 @@ private fun ColumnScope.MathPad() {
             // The keypad reports the label it shows.
             "C" -> ed.clear()
             "AC" -> { editing = null; calc.press("AC") }
-            "±", "⌫" -> ed.backspace()
+            "⌫" -> ed.backspace()
             "=" -> {
                 val answer = ed.answer()
                 if (answer != null) { calc.load(CalcHistory.tidy(ed.text), answer); editing = null }
@@ -787,7 +809,7 @@ private fun CalcKey(key: String, width: Dp, height: Dp, selected: Boolean, onCli
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val isOp = key in setOf("÷", "×", "−", "+", "=", "⇅", "↻")
-    val isFn = key in setOf("AC", "C", "±", "%", "⌫")
+    val isFn = key in setOf("AC", "C", "%", "⌫")
     val (up, down, fg) = when {
         isOp && selected -> Triple(Color.White, Color.White, KeyOp)
         isOp -> Triple(KeyOp, KeyOpDown, Color.White)

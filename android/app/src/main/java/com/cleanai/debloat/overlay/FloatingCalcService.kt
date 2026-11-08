@@ -179,7 +179,9 @@ class FloatingCalcService : Service() {
             setTextColor(GREY)
             textSize = 14f
             gravity = Gravity.END
-            maxLines = 1
+            // A long sum wraps onto a second line and keeps its newest part.
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.START
         }
         panel.addView(expression, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         display = TextView(this).apply {
@@ -201,11 +203,9 @@ class FloatingCalcService : Service() {
         ROWS.forEach { row ->
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.forEach { k ->
-                val wide = k == "0"
                 val key = TextView(this).apply {
                     text = k
-                    gravity = if (wide) Gravity.CENTER_VERTICAL or Gravity.START else Gravity.CENTER
-                    if (wide) setPadding(dp(18f), 0, 0, 0)
+                    gravity = Gravity.CENTER
                     textSize = (if (k in OPS || k == "=") 24f else 20f) * SIZES[size]
                     setOnClickListener { v ->
                         v.performHapticFeedback(HapticFeedbackType)
@@ -214,7 +214,7 @@ class FloatingCalcService : Service() {
                     }
                 }
                 keys[k] = key
-                line.addView(key, LinearLayout.LayoutParams(0, sp(46f), if (wide) 2f else 1f).apply { setMargins(sp(4f), sp(4f), sp(4f), sp(4f)) })
+                line.addView(key, LinearLayout.LayoutParams(0, sp(46f), 1f).apply { setMargins(sp(4f), sp(4f), sp(4f), sp(4f)) })
             }
             body.addView(line)
         }
@@ -272,7 +272,7 @@ class FloatingCalcService : Service() {
             val (bg, fg) = when {
                 k in OPS && lit -> 0xFFFFFFFF.toInt() to ORANGE
                 k in OPS || k == "=" -> ORANGE to 0xFFFFFFFF.toInt()
-                k == "AC" || k == "±" || k == "%" -> 0xFFA5A5A5.toInt() to 0xFF000000.toInt()
+                k == "AC" || k == "⌫" || k == "%" -> 0xFFA5A5A5.toInt() to 0xFF000000.toInt()
                 else -> 0xFF333333.toInt() to 0xFFFFFFFF.toInt()
             }
             v.background = rounded(bg, 23f * SIZES[size])
@@ -291,11 +291,11 @@ class FloatingCalcService : Service() {
         private val OPS = setOf("÷", "×", "−", "+")
         private val SIZES = floatArrayOf(0.8f, 1f, 1.2f)
         private val ROWS = listOf(
-            listOf("AC", "±", "%", "÷"),
+            listOf("AC", "%", "⌫", "÷"),
             listOf("7", "8", "9", "×"),
             listOf("4", "5", "6", "−"),
             listOf("1", "2", "3", "+"),
-            listOf("0", ".", "="),
+            listOf("00", "0", ".", "="),
         )
 
         /** Set while the user is in Settings allowing "Display over other apps"; the app opens the calculator on return. */
