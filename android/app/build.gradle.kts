@@ -58,7 +58,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrink, optimize and obfuscate. Keep rules live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isDebuggable = false
             // Never falls back to the debug key: without a release key the release build stops (below).
             signingConfig = if (releaseSigningProblems.isEmpty()) signingConfigs.getByName("release") else null

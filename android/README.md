@@ -116,6 +116,13 @@ release key, not `CN=Android Debug`.
 
 The app's update check (`data/Updates.kt`) offers the first `.apk` attached to the latest release.
 
+### Release build is minified
+
+Release builds run through R8 (shrinking, obfuscation, resource shrinking); debug builds do not.
+If a release crashes but debug works, a class was probably removed or renamed. Check
+`app/build/outputs/mapping/release/` (`mapping.txt` decodes stack traces, `usage.txt` lists removed
+code, `seeds.txt` lists kept code) and add a keep rule to `app/proguard-rules.pro`.
+
 ### One-time reinstall when moving to the release key
 
 Version 2.0.5 and earlier were published signed with a debug key. Android only installs an update
