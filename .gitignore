@@ -1,0 +1,3 @@
+# Release builds are published to GitHub Releases, never committed
+downloads/*.apk
+*.apk

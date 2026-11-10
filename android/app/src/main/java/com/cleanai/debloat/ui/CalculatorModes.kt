@@ -138,10 +138,12 @@ internal class SciCalc {
         if (expr.isBlank()) return
         try {
             val v = eval(expr)
+            // History keeps the Ans used now, so the saved sum works out the same later.
+            val saved = CalcHistory.withAns(expr, ans)
             ans = v
             lastExpr = expr
             result = formatNumber(BigDecimal(v))
-            CalcHistory.add(expr, result!!)
+            CalcHistory.add(saved, result!!)
         } catch (e: Exception) {
             error = (e as? Formula.Error)?.code?.let { if (it == "#DIV/0!") "Can't divide by zero" else "Error" } ?: "Error"
         }
@@ -293,6 +295,13 @@ private val money: NumberFormat = NumberFormat.getNumberInstance().apply {
 
 private fun num(s: String) = s.replace(",", "").toDoubleOrNull()
 
+/** Longest loan or SIP the calculator works out; beyond this the month count would overflow. */
+private const val MAX_YEARS = 100
+
+/** Years to whole months (at least one), or null when the tenure is missing, zero or over [MAX_YEARS]. */
+internal fun tenureMonths(years: Double?): Int? =
+    if (years == null || !(years > 0) || years > MAX_YEARS) null else Math.round(years * 12).toInt().coerceAtLeast(1)
+
 /** Loan EMI, SIP, compound interest and GST, worked out as you type. */
 @Composable
 internal fun ColumnScope.FinancePad() {
@@ -325,8 +334,8 @@ private fun LoanEmi() {
     Field("Interest rate (% per year)", rate) { rate = it }
     Field("Tenure (years)", years) { years = it }
     val p = num(principal); val r = num(rate); val y = num(years)
-    if (p == null || r == null || y == null || y <= 0) return Hint()
-    val n = Math.round(y * 12).toInt().coerceAtLeast(1)
+    val n = tenureMonths(y)
+    if (p == null || r == null || n == null) return Hint()
     val i = r / 12 / 100
     val emi = if (i == 0.0) p / n else p * i * (1 + i).pow(n) / ((1 + i).pow(n) - 1)
     val total = emi * n
@@ -345,8 +354,8 @@ private fun Sip() {
     Field("Expected return (% per year)", rate) { rate = it }
     Field("Time period (years)", years) { years = it }
     val m = num(monthly); val r = num(rate); val y = num(years)
-    if (m == null || r == null || y == null || y <= 0) return Hint()
-    val n = Math.round(y * 12).toInt().coerceAtLeast(1)
+    val n = tenureMonths(y)
+    if (m == null || r == null || n == null) return Hint()
     val i = r / 12 / 100
     // Paid at the start of each month, the usual way SIP calculators count it.
     val value = if (i == 0.0) m * n else m * ((1 + i).pow(n) - 1) / i * (1 + i)

@@ -76,14 +76,55 @@ internal object CalcHistory {
     fun clear() { entries.clear(); save() }
 
     private fun save() {
+        // Nothing to write to before load() (and in JVM unit tests, where org.json is only a stub).
+        val p = prefs ?: return
         val arr = JSONArray()
         entries.forEach { arr.put(JSONObject().put("e", it.expr).put("r", it.result).put("t", it.time)) }
-        prefs?.edit()?.putString("history", arr.toString())?.apply()
+        p.edit().putString("history", arr.toString()).apply()
     }
 
     /** The calculator's own symbols, without spaces, commas or a dangling operator at the end. */
     fun tidy(text: String) = text.replace(",", "").replace(" ", "").replace('*', '×').replace('/', '÷').replace('x', '×').replace('X', '×')
         .replace('-', '−').trimEnd('+', '−', '×', '÷')
+
+    /**
+     * Gives % the Basic keypad's meaning before working the sum out: "200+10%" adds 10 % of 200 (220),
+     * "200−10%" takes it away (180); after × or ÷, or on its own, % divides by 100 as usual.
+     */
+    fun basicPercent(text: String): String {
+        val s = tidy(text)
+        return Regex("""([0-9.]+)(%+)""").replace(s) { m ->
+            val at = m.range.first
+            val op = s.getOrNull(at - 1)
+            if (op != '+' && op != '−') return@replace m.value
+            // The number just before the + or −, with its sign when it is a negative number.
+            var start = at - 1
+            while (start > 0 && (s[start - 1].isDigit() || s[start - 1] == '.')) start--
+            if (start == at - 1) return@replace m.value
+            if (start > 0 && s[start - 1] == '−' && (start == 1 || s[start - 2] in "+−×÷(")) start--
+            if (start > 0 && s[start - 1] !in "+−×÷(") return@replace m.value
+            val base = s.substring(start, at - 1)
+            var part = m.groupValues[1]
+            repeat(m.groupValues[2].length) { part = "($base×$part÷100)" }
+            part
+        }
+    }
+
+    /** [expr] with each Ans replaced by its value, written so it works out exactly the same again. */
+    fun withAns(expr: String, ans: Double): String {
+        val d = BigDecimal(ans.toString()).stripTrailingZeros()
+        val plain = d.toPlainString()
+        val text = if (plain.length <= 24) plain else d.toString()
+        return Regex("Ans").replace(expr) { m ->
+            val before = expr.getOrNull(m.range.first - 1)
+            val after = expr.getOrNull(m.range.last + 1)
+            // Brackets keep it one number: "2Ans" is 2 × Ans, not 25; "−Ans" with Ans = −3 is not "−−3".
+            val bracket = text.startsWith("-") || 'E' in text ||
+                before?.let { it.isLetterOrDigit() || it == '.' || it == ')' } == true ||
+                after?.let { it.isLetterOrDigit() || it == '.' || it == '(' } == true
+            if (bracket) "($text)" else text
+        }
+    }
 
     /** Works out a typed or edited sum; accepts * / - x as well as × ÷ −, and ignores thousands commas. */
     fun evaluate(text: String, degrees: Boolean = true, ans: Double = 0.0): BigDecimal {

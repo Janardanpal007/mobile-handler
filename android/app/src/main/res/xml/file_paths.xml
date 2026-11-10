@@ -3,4 +3,6 @@
 <paths>
     <files-path name="myfiles" path="MyFiles/" />
     <external-files-path name="documents" path="Documents/" />
+    <!-- Copies of other PDFs, made just to share them. -->
+    <cache-path name="shared" path="shared/" />
 </paths>

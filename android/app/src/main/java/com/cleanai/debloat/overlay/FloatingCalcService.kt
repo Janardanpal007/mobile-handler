@@ -58,16 +58,26 @@ class FloatingCalcService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         com.cleanai.debloat.ui.CalcHistory.init(this)
-        if (intent?.action == ACTION_STOP || !Settings.canDrawOverlays(this)) {
+        if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (!Settings.canDrawOverlays(this)) {
+            // Started with startForegroundService, so Android needs startForeground even when it closes straight away.
+            runCatching { startInForeground() }
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        startInForeground()
+        if (root == null) show()
+        return START_NOT_STICKY
+    }
+
+    private fun startInForeground() {
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID, notification(),
             if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0,
         )
-        if (root == null) show()
-        return START_NOT_STICKY
     }
 
     override fun onDestroy() {

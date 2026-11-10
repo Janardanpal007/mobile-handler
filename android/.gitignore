@@ -6,6 +6,7 @@ local.properties
 *.apk
 *.jks
 *.keystore
+keystore.properties
 .idea/
 *.iml
 # Old development screenshots taken on the developer phone

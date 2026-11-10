@@ -94,7 +94,7 @@ private val SegmentOn = Color(0xFF636366)
 
 private const val MAX_DIGITS = 15
 
-/** A very long sum keeps its newest part on screen. */
+/** A very long sum keeps its newest part on screen (fewer characters if even these don't fit in three lines). */
 private const val SUM_SHOWN = 90
 
 /** Swipes that start this close to the screen's sides are Android's back gesture, not "delete a digit". */
@@ -262,6 +262,8 @@ internal class IosCalc {
     var error by mutableStateOf(false); private set
     /** Grey line above the number: the sum being built, or the one just worked out. */
     var expression by mutableStateOf(""); private set
+    /** The same sum with every number in full, for history and editing, so it works out to the same answer again. */
+    var exact by mutableStateOf(""); private set
 
     private val nums = mutableListOf<BigDecimal>()
     private val ops = mutableListOf<Char>()
@@ -314,7 +316,7 @@ internal class IosCalc {
             ops.removeAt(ops.lastIndex)
             typed = nums.removeAt(nums.lastIndex).stripTrailingZeros().toPlainString()
             selectedOp = null
-            if (nums.isEmpty()) expression = ""
+            if (nums.isEmpty()) { expression = ""; exact = "" }
         } else return
         refreshExpression()
     }
@@ -324,7 +326,7 @@ internal class IosCalc {
         val t = typed
         if (t == null) {
             typed = if (d == ".") "0." else d
-            if (nums.isEmpty()) expression = ""
+            if (nums.isEmpty()) { expression = ""; exact = "" }
         } else if (d == ".") {
             if ('.' !in t) typed = "$t."
         } else if (t.count { it.isDigit() } < MAX_DIGITS) {
@@ -364,8 +366,10 @@ internal class IosCalc {
             repeatOp = ops.last()
             repeatArg = arg
             val text = describe(all, ops)
+            val full = describe(all, ops, full = true)
             safely { current = evaluate(all, ops) }
             expression = text
+            exact = full
             nums.clear()
             ops.clear()
         } else {
@@ -374,10 +378,11 @@ internal class IosCalc {
             val start = value()
             safely { current = evaluate(listOf(start, arg), listOf(o)) }
             expression = describe(listOf(start, arg), listOf(o))
+            exact = describe(listOf(start, arg), listOf(o), full = true)
         }
         typed = null
         selectedOp = null
-        if (!error) CalcHistory.add(expression, display)
+        if (!error) CalcHistory.add(exact, display)
     }
 
     /** Shows an edited or past calculation: [text] on the grey line and its answer, ready to carry on from. */
@@ -385,6 +390,7 @@ internal class IosCalc {
         allClear()
         current = answer
         expression = text
+        exact = text
         CalcHistory.add(text, display)
     }
 
@@ -413,6 +419,7 @@ internal class IosCalc {
         selectedOp = null
         error = false
         expression = ""
+        exact = ""
         nums.clear()
         ops.clear()
         repeatOp = null
@@ -422,6 +429,7 @@ internal class IosCalc {
     private fun refreshExpression() {
         if (nums.isEmpty()) return
         expression = describe(nums, ops) + (typed?.let { groupTyped(it) } ?: "")
+        exact = describe(nums, ops, full = true) + (typed ?: "")
     }
 
     private inline fun safely(block: () -> Unit) {
@@ -436,9 +444,10 @@ internal class IosCalc {
         }
     }
 
-    private fun describe(values: List<BigDecimal>, operators: List<Char>) = buildString {
+    /** The sum as text: rounded like the display, or with [full] every digit kept. */
+    private fun describe(values: List<BigDecimal>, operators: List<Char>, full: Boolean = false) = buildString {
         values.forEachIndexed { i, v ->
-            append(formatNumber(v))
+            append(if (full) v.stripTrailingZeros().toPlainString() else formatNumber(v))
             operators.getOrNull(i)?.let { append(it) }
         }
     }
@@ -504,7 +513,7 @@ private fun ColumnScope.MathPad() {
     // Samsung-style editing: the sum on the display with a cursor, changed with the calculator's own keys.
     var editing by remember { mutableStateOf<SumEditor?>(null) }
     // The sum being typed, or the one just worked out, or the number on show.
-    fun editStart() = calc.expression.ifEmpty { calc.display.takeIf { it != "0" && it != "Error" }.orEmpty() }.replace(",", "")
+    fun editStart() = calc.exact.ifEmpty { calc.display.takeIf { it != "0" && it != "Error" }.orEmpty() }.replace(",", "")
 
     Column(
         Modifier
@@ -543,8 +552,10 @@ private fun ColumnScope.MathPad() {
             )
         } else {
             // Tap the sum or the number to put a cursor in it and change it.
-            // The whole sum, over up to three lines and smaller as it grows, so nothing is hidden.
-            val sum = calc.expression.let { if (it.length > SUM_SHOWN) "…" + it.takeLast(SUM_SHOWN) else it }
+            // The sum over up to three lines, smaller as it grows; if it still doesn't fit,
+            // its start gives way to "…" so the newest number is always in view.
+            var keep by remember(calc.expression) { mutableStateOf(SUM_SHOWN) }
+            val sum = calc.expression.let { if (it.length > keep) "…" + it.takeLast(keep) else it }
             Text(
                 // Lines break after + − × ÷, never in the middle of a number.
                 sum.replace(Regex("([+−×÷])"), "$1​"),
@@ -552,8 +563,14 @@ private fun ColumnScope.MathPad() {
                 fontSize = when { sum.length <= 22 -> 26.sp; sum.length <= 44 -> 22.sp; else -> 18.sp },
                 lineHeight = when { sum.length <= 22 -> 32.sp; sum.length <= 44 -> 28.sp; else -> 23.sp },
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Clip,
                 textAlign = TextAlign.End,
+                onTextLayout = { l ->
+                    if (l.hasVisualOverflow && keep > 1) {
+                        val hidden = l.layoutInput.text.length - l.getLineEnd(l.lineCount - 1, visibleEnd = true)
+                        keep = (minOf(keep, calc.expression.length) - hidden.coerceAtLeast(1) - 1).coerceAtLeast(1)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().clickable(enabled = calc.expression.isNotEmpty()) { editing = SumEditor(editStart()) },
             )
             // A longer sum leaves less room, so the big number gets a little smaller to keep the answer line in view.
@@ -617,7 +634,8 @@ internal class SumEditor(start: String) {
 
     fun clear() { text = ""; cursor = 0 }
 
-    fun answer(): BigDecimal? = if (text.isBlank()) null else runCatching { CalcHistory.evaluate(text) }.getOrNull()
+    /** Works the sum out with % meaning what it does on the Basic keypad ("200+10%" is 220). */
+    fun answer(): BigDecimal? = if (text.isBlank()) null else runCatching { CalcHistory.evaluate(CalcHistory.basicPercent(text)) }.getOrNull()
 }
 
 /** The sum in large type with a blinking cursor; tap anywhere in it to move the cursor there. */
