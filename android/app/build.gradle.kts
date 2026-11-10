@@ -33,12 +33,12 @@ val releaseSigningProblems = buildList {
 
 android {
     namespace = "com.cleanai.debloat"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.cleanai.debloat"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 18
         versionName = "2.0.5"
         // Phones only: leaves out the x86 emulator copies of the photo AI's native libraries.
