@@ -76,9 +76,11 @@ internal object CalcHistory {
     fun clear() { entries.clear(); save() }
 
     private fun save() {
+        // Nothing to write to before load() (and in JVM unit tests, where org.json is only a stub).
+        val p = prefs ?: return
         val arr = JSONArray()
         entries.forEach { arr.put(JSONObject().put("e", it.expr).put("r", it.result).put("t", it.time)) }
-        prefs?.edit()?.putString("history", arr.toString())?.apply()
+        p.edit().putString("history", arr.toString()).apply()
     }
 
     /** The calculator's own symbols, without spaces, commas or a dangling operator at the end. */
