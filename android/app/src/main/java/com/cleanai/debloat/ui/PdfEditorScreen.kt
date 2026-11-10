@@ -1323,7 +1323,20 @@ private fun MiniButton(label: String, enabled: Boolean = true, onClick: () -> Un
 
 internal fun sharePdf(ctx: android.content.Context, uri: Uri) {
     val shareUri = if (uri.scheme == "file") {
-        androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", File(uri.path!!))
+        val file = File(uri.path!!)
+        try {
+            androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", file)
+        } catch (e: IllegalArgumentException) {
+            // Outside the shared folders: share a copy from the cache instead.
+            runCatching {
+                val copy = File(File(ctx.cacheDir, "shared").apply { mkdirs() }, file.name)
+                file.copyTo(copy, overwrite = true)
+                androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", copy)
+            }.getOrElse {
+                Toast.makeText(ctx, "Couldn't share this PDF.", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
     } else uri
     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("application/pdf").putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
         .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)

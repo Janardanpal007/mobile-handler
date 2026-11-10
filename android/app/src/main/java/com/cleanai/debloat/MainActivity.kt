@@ -40,6 +40,9 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
+/** Screens another part of the app may open through the floating calculator's EXTRA_OPEN. */
+private val OPENABLE = setOf("calculator")
+
 class MainActivity : ComponentActivity() {
     private val vm: AgentViewModel by viewModels()
 
@@ -93,7 +96,8 @@ class MainActivity : ComponentActivity() {
 
     /** The floating calculator's title opens the full calculator here; a file opened from another app goes to its editor. */
     private fun openRequested(intent: Intent?) {
-        intent?.getStringExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)?.let { vm.show(it) }
+        // The activity is exported, so other apps could send this too: only the screens the app itself asks for.
+        intent?.getStringExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)?.takeIf { it in OPENABLE }?.let { vm.show(it) }
         intent?.removeExtra(com.cleanai.debloat.overlay.FloatingCalcService.EXTRA_OPEN)
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.data?.let { openFile(it, intent.type) }

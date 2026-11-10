@@ -1,6 +1,6 @@
-# Mobile Handler – Source Audit (v1.6.1 → v1.7)
+# Mobile Handler – Source Audit (v1.6.1 → v2.0.5)
 
-Date: 2026-11-02 · Audited code: `android/` (package `com.cleanai.debloat`, ~6,500 lines of Kotlin, Jetpack Compose)
+Date: 2026-11-02, facts updated 2026-11-10 for version 2.0.5 (build 18) · Audited code: `android/` (package `com.cleanai.debloat`, ~15,500 lines of Kotlin in `app/src/main`, Jetpack Compose)
 
 ## Where the source was
 
@@ -9,8 +9,8 @@ The Android source for v1.6.1 lived only in a temporary folder on the developmen
 `android/` in this repository, so it has Git history from this point on. Build outputs, `local.properties`,
 APKs, keystores and old development screenshots are git-ignored.
 
-Build: JDK 17, Android Gradle Plugin with Gradle 8.9, `compileSdk 34`, `minSdk 26`, arm64/armv7 only.
-`./gradlew assembleDebug` builds successfully (APK ≈ 41 MB, mostly the two photo AI models in `assets/`).
+Build: JDK 17, Android Gradle Plugin 8.5.2 with Gradle 8.9, `compileSdk 34`, `targetSdk 34`, `minSdk 26`, arm64/armv7 only.
+`./gradlew assembleDebug` builds successfully. The published 2.0.5 APK (`downloads/MobileHandler.apk`) is ≈ 51 MB, mostly the two photo AI models in `assets/`.
 
 Legend: ✅ works · 🟡 partly done · ❌ not started
 
@@ -18,16 +18,16 @@ Legend: ✅ works · 🟡 partly done · ❌ not started
 
 | # | Feature | Status | What exists | What is missing / needs work |
 |---|---|---|---|---|
-| 1 | **Sparky** (Fire-Fox mascot + assistant) | 🟡 | `ui/Sparky.kt` animated mascot on Home (tap reaction). `agent/AgentViewModel.kt` routes typed text with rules to **real** actions: open any feature, scan QR/doc, make PDF, weather, maths, currency, clean, ad blocker, restore, settings, clear chat. No fake replies. | Commands are typed in the Assistant chat screen, not on Home itself. Matching is regex-based (fine offline) but brittle for phrasing variety. Greeting on Home exists ("Good night, <name>"). |
+| 1 | **Sparky** (Fire-Fox mascot + assistant) | 🟡 | `ui/SparkyArt.kt` / `ui/SparkyMood.kt` animated mascot on Home (tap reaction). Home has an "Ask Sparky or find a tool…" bar that sends what you type to the assistant. `agent/AgentViewModel.kt` routes typed text with rules to **real** actions: open any feature, scan QR/doc, make PDF, weather, maths, currency, clean, ad blocker, restore, settings, clear chat. No fake replies. | Answers still appear in the Assistant chat screen. Matching is regex-based (fine offline) but brittle for phrasing variety. Greeting on Home exists ("Good night, <name>"). |
 | 2 | **Phone Cleaner** | 🟡 | Shizuku-based `pm disable-user` / `pm uninstall -k --user 0` (`data/ShizukuShell.kt`). Curated list of 121 packages (`data/BloatDb.kt`); critical/default apps locked (`data/Guard.kt`); every change recorded (`data/ChangeStore.kt`) and undoable (Restore Apps). Step-by-step Shizuku setup guide incl. Xiaomi/ColorOS. | Needs more device testing per OEM. Without Shizuku nothing can be disabled (Android does not allow it) — the UI already explains this. List coverage for Samsung/Vivo/Motorola is thin. |
 | 3 | **Ad Blocker** | 🟡 | Private DNS: AdGuard, AdGuard Family, Mullvad. Set automatically through Shizuku, or manual guided steps. DNS status check. Tracker scan of installed apps (`data/TrackerScanner.kt`). | As stated in the requirements: DNS cannot remove every in-app ad (same-domain ads). Tracker scan is signature-based; no per-app blocking. |
 | 4 | **Photo Enhancer** | ✅/🟡 | On-device LiteRT: Real-ESRGAN 4× (`enhance_x4.tflite`) and restore model (`restore_x4.tflite`), DDColor colorize (separate ~100 MB download). Saves to My Files / gallery. | Slow on low-end phones; no before/after compare slider; no face restoration. |
 | 5 | **Scan Document** | ✅ | Google ML Kit Document Scanner (edge detection, perspective fix, filters) → PDF in My Files. | Relies on Google Play services (not fully open source). No OCR yet. |
 | 6 | **Photos → PDF** | ✅ | `data/PdfTools.kt` combines picked images (scaled, EXIF-rotated) into one PDF. | No page reordering/margins/page size options. |
 | 7 | **Scan QR** | ✅ | ML Kit code scanner (no camera permission). Handles links, Wi-Fi, text, copy/open. | Relies on Play services. No scan history. |
-| 8 | **Calculator** | ✅ (upgraded in 1.7) | iPhone-style basic calculator, Scientific, Finance (EMI, SIP, compound interest, GST) and Currency tabs, plus a floating calculator. | See "Office tools and calculator" below. |
+| 8 | **Calculator** | ✅ (upgraded in 1.7 and 2.0.x) | iPhone-style basic calculator, Scientific, Finance (EMI, SIP, compound interest, GST), Currency and Units tabs, plus a floating calculator. | See "Office tools and calculator" below. |
 | 9 | **Weather** | ✅ | Open-Meteo current + 3-day forecast, by city name or coarse location. | Shown as chat text only; no dedicated screen. Needs internet. |
-| 10 | **My Files** | 🟡 | Lists the app's own scans/PDFs/photos; open, share PDF, share images, delete. | Not a general file manager: no browsing of phone storage, rename, move, copy, search or sort. |
+| 10 | **My Files** | 🟡 | Lists the app's own scans/PDFs/photos; open, share PDF, share images, rename, delete. | Not a general file manager: no browsing of phone storage, move, copy, search or sort. |
 
 Also present: first-run profile (name, age, place), Settings (theme, Shizuku, restore, update check & notification, keep-alive help, clear chat), About & Privacy screen, in-app update checker against GitHub releases.
 
@@ -55,7 +55,7 @@ Also present: first-run profile (name, age, place), Settings (theme, Shizuku, re
 
 Real-ESRGAN (BSD-3), DDColor (Apache-2.0), PdfBox-Android (Apache-2.0), JUnit (EPL-1.0, tests only), kXML2 (BSD, tests only), Shizuku API (MIT), LiteRT (Apache-2.0), AndroidX/Compose (Apache-2.0). ML Kit scanners are free but closed-source Google Play services components.
 
-## Changes in v1.7 (this update)
+## Changes in v1.7 (historical; see "Calculator" below for the current keypad)
 
 - **Calculator redesigned to look and behave like the iPhone calculator:** black screen, round keys in iOS colours (grey AC/±/%, orange operators, dark digits, wide 0), selected operator turns white until the next number, AC ↔ C, ± and iOS-style % (`200 + 10 %` = 220), × and ÷ before + and −, repeated `=` repeats the last step, swipe the display to delete a digit, thousands separators, 9-digit limit, numbers shrink to fit and overflow to `8.88889e9`, `Error` on divide by zero, grey expression line above the result, key-press haptics and press highlight, white status-bar icons on the black screen.
 - Currency converter kept, restyled with the same keys and an iOS segmented control.
@@ -94,14 +94,15 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 - Saving an opened .xlsx rewrites only the edited cells (each keeps its style); formatting, column widths, merged cells, charts and other sheets are kept, and Excel recalculates on open. If a change can't be kept safely (an array formula, a renamed sheet), the app saves a separate simple copy and leaves the original untouched. CSV saves values only.
 
 **Calculator** (`ui/CalculatorScreen.kt`, `ui/CalculatorModes.kt`, `overlay/FloatingCalcService.kt`)
-- Tabs: Basic (iPhone-style), Scientific (sin/cos/tan, ln/log, √, xʸ, x!, π, e, Ans, Deg/Rad), Finance (Loan EMI, SIP, compound interest, GST add/remove with CGST/SGST), Currency.
+- Basic keypad today: AC % ⌫ ÷ on top, 00 0 . = at the bottom (no ± key since 2.0.5); 15 digits before `1.2345e15` style; the answer shows while you type; long sums wrap over up to three lines with the newest number always in view.
+- Tabs: Basic (iPhone-style), Scientific (sin/cos/tan, ln/log, √, xʸ, x!, π, e, Ans, Deg/Rad), Finance (Loan EMI, SIP, compound interest, GST add/remove with CGST/SGST), Currency, Units.
 - Edit a calculation like on Samsung phones: tap the sum or the answer, tap where the cursor should go, change it with the keypad (⌫ deletes, C empties the sum and then turns into AC, which clears everything), and the answer updates as you type; = keeps it. Back leaves editing unchanged. On the Scientific tab, tapping the sum opens a small box with the same live answer.
 - History: the last 100 calculations from Basic, Scientific and the floating calculator, kept privately on the phone; tap one to edit and reuse it, or clear them all.
 - Floating calculator: tap ⧉; draggable, can be collapsed, long-press the display to copy. Runs as a foreground service with a notification only while it is open.
 
 **Sparky** understands: "merge PDFs", "open Word", "new spreadsheet", "make a note" / "to-do list", "loan EMI", "scientific calculator", "floating calculator" and opens the real tool.
 
-**Tests**: `app/src/test/.../OfficeTest.kt` — 10 JVM unit tests (formula maths and errors, sheet formulas, XLSX round trip, reading an `.xlsx` made by openpyxl, CSV quoting, DOCX round trip, reading a `.docx` made by python-docx). All pass.
+**Tests**: 9 JVM unit-test files under `app/src/test/` with 45 tests: `data/OfficeTest.kt` (formula maths and errors, sheet formulas, XLSX round trip, reading an `.xlsx` made by openpyxl, CSV quoting, DOCX round trip, reading a `.docx` made by python-docx), `data/OfficeSaveTest.kt`, `data/UnitsTest.kt`, `data/FileNamesTest.kt`, `ui/CalcPreviewTest.kt`, `ui/CalcFixesTest.kt`, `ui/DocLaunchTest.kt`, `ui/PdfFindTest.kt`, `ui/SparkyMoodTest.kt`.
 
 **Checked on the phone (1080×2400):** merge 2 PDFs → 5 pages; annotate + Save copy (stroke and text found in the saved file); compress 617 KB → 368 KB; extract pages 2-3 → 2 pages; Word document with title, list and bold saved and read back with python-docx; spreadsheet formulas and `.xlsx` save read back with openpyxl; EMI, SIP and GST results match the standard formulas; Scientific `2×sin(30)+√16 = 5`; floating-calculator button opens the "Display over other apps" screen.
 **Checked on the phone after the editor and Notes update:** edit an existing line (12 → 25 percent), add a text box, move it, highlight snapped to a sentence, pen stroke, signature placed and resized, page rotate / reorder / blank page, save in place → reopened with every item; the saved file read with pypdf has the new text on the page, FreeText/Highlight/Ink/Stamp annotations and the right page order and rotation. Floating calculator over the home screen, 12×3 = 36, title tap returns to the app's calculator with 36. Notes: text note, checklist, colour, tag, pin, lock (the phone's fingerprint prompt appears; cancelling keeps the note closed), trash, saved file survives a restart.
@@ -109,7 +110,7 @@ Tested on a connected phone (1080×2400): `12 + 3 × 4 = 24`, repeat `=` → 96,
 
 ## Suggested next steps (in the agreed priority order)
 
-1. Home: let Sparky take commands directly on the Home screen.
+1. ~~Home: let Sparky take commands directly on the Home screen.~~ Done: the Home "ask anything" bar.
 2. Phone Cleaner / Ad Blocker: OEM testing and list coverage.
-3. My Files: real storage browsing, rename/move/copy.
+3. My Files: real storage browsing, move/copy (rename is done).
 4. OCR (feature 16) and image editing (feature 17).
