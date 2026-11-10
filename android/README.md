@@ -106,9 +106,15 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 (`apksigner` is in the SDK's `build-tools/<version>/` folder.) The certificate shown must be your
 release key, not `CN=Android Debug`.
 
-**4. Publish:** copy `app-release.apk` to `downloads/MobileHandler.apk` (the website's download)
-and attach it as `MobileHandler.apk` to a new GitHub release. The app's update check
-(`data/Updates.kt`) offers the first `.apk` attached to the latest release.
+**4. Publish:** do not commit the APK (`*.apk` is git-ignored).
+
+1. Create a GitHub release with tag `vX.Y.Z` (matching `versionName`).
+2. Attach the signed `app-release.apk`, renamed to exactly `MobileHandler.apk`.
+3. The website's Download button points to
+   `https://github.com/Janardanpal007/mobile-handler/releases/latest/download/MobileHandler.apk`,
+   which only works while the latest release has an asset with that exact name.
+
+The app's update check (`data/Updates.kt`) offers the first `.apk` attached to the latest release.
 
 ### One-time reinstall when moving to the release key
 

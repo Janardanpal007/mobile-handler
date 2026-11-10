@@ -10,7 +10,7 @@ The Android source for v1.6.1 lived only in a temporary folder on the developmen
 APKs, keystores and old development screenshots are git-ignored.
 
 Build: JDK 17, Android Gradle Plugin 8.5.2 with Gradle 8.9, `compileSdk 34`, `targetSdk 34`, `minSdk 26`, arm64/armv7 only.
-`./gradlew assembleDebug` builds successfully. The published 2.0.5 APK (`downloads/MobileHandler.apk`) is ≈ 51 MB, mostly the two photo AI models in `assets/`.
+`./gradlew assembleDebug` builds successfully. The published 2.0.5 APK (attached to the GitHub release) is ≈ 51 MB, mostly the two photo AI models in `assets/`.
 
 Legend: ✅ works · 🟡 partly done · ❌ not started
 

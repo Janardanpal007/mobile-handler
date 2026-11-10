@@ -7,7 +7,7 @@
 <p align="center">
   One private Android app to clean, protect and handle your phone.<br>
   <a href="https://janardanpal007.github.io/mobile-handler/"><b>Website</b></a> ·
-  <a href="https://janardanpal007.github.io/mobile-handler/downloads/MobileHandler.apk"><b>Download APK</b></a> ·
+  <a href="https://github.com/Janardanpal007/mobile-handler/releases/latest/download/MobileHandler.apk"><b>Download APK</b></a> ·
   <a href="https://github.com/Janardanpal007/mobile-handler/releases"><b>All releases</b></a>
 </p>
 
